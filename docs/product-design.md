@@ -94,6 +94,13 @@ only explains them; it never invents them.
   (rares, sampled sparingly within its rate limits).
 - Output: "Ring: +25% DPS for ~40c" ranked by gain per chaos, with a link
   that opens the matching trade search.
+- Also price the support gems §3.9 suggests (gain per chaos), at the level
+  players actually buy. A gem with no poe.ninja listing in the current
+  league is left out or marked "not obtainable": most Awakened supports no
+  longer drop (owner's finding, 2026-10-10: only Awakened Empower, Enlighten
+  and Enhance still do), yet PoB's data still has them all and the ranking
+  suggested Awakened Greater Multiple Projectiles. Use market data, not a
+  hard-coded list, so the next removals are caught too.
 
 ### 3.3 Item check: "is this an upgrade for my build?"
 

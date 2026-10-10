@@ -98,8 +98,11 @@
   (Flame Link) deals no damage, so the app ranks by defence and says why.
   Identical choices (same stats elsewhere, same swap on two masteries)
   show once with a count. To check on the Reliquarian: "+12% DoT multi for
-  poison on Bleeding Enemies" (+6.4%) counts though the config doesn't set
-  the enemy as bleeding.
+  poison on Bleeding Enemies" (+6.4%) counts because the build's own PoB
+  config ticks "Is the enemy Bleeding?" (the owner says it shouldn't). The
+  passive advisor and gem ranking use the config as set; a switch to drop
+  situational assumptions there (session 3's code) is a candidate v0.5.1.
+  Support ranking suggested Awakened gems that no longer drop: see §3.2.
   Dev tool: `cargo run --release --example stats -- build.xml --passives`.
   Not done: minion DPS (Combined DPS only, like session 3), the small tree
   view with the path drawn, cluster jewel notables not yet socketed.
