@@ -9,13 +9,15 @@
 - [x] 1. PoB engine (headless PoB inside the app) + saved builds.
       (Built 2026-10-10 as v0.2.0; tick once the installed app shows your
       build's stats matching PoB.)
-- [ ] 2. Passive advisor.
-- [ ] 3. Item upgrade advisor.
-- [ ] 4. Item check from the clipboard.
-- [ ] 4b. Compare to a target build; build links.
-- [ ] 5. Run tracker (game log).
-- [ ] 6. Earnings and farming advisor (needs GGG OAuth approval).
-- [ ] 7. League mechanics (3.29 mercenaries).
+- [ ] 2. Build health check + try an item.
+- [ ] 3. Honest DPS and boss check; support gem / pantheon / flask ranking.
+- [ ] 4. Passive advisor.
+- [ ] 5. Item upgrade advisor.
+- [ ] 6. Item check from the game clipboard.
+- [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
+- [ ] 8. Run tracker (game log).
+- [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
+- [ ] 10. League mechanics (3.29 mercenaries).
 
 ## Session notes
 
