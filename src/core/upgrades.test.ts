@@ -48,6 +48,19 @@ describe("item upgrade advisor", () => {
     expect(plan.bySlot.find((s) => s.slot === "Ring 1")?.upgrades.map((a) => a.name)).toEqual(["Pricey", "Cheap"]);
   });
 
+  it("keeps two best buys per kind of slot and drops items that cost a lot of DPS or effective HP", () => {
+    table.F1 = table.F2 = table.F3 = 1;
+    const r = result([
+      trial("F1", "Flask 1", { CombinedDPS: 1100 }),
+      trial("F2", "Flask 2", { CombinedDPS: 1090 }),
+      trial("F3", "Flask 3", { CombinedDPS: 1080 }),
+      trial("Cheap", "Ring 1", { CombinedDPS: 1040 }),
+      trial("Pricey", "Ring 1", { TotalEHP: 12_000, CombinedDPS: 0 }),
+    ]);
+    expect(planUpgrades(r, "damage", priceOf).best.map((a) => a.name)).toEqual(["F1", "F2", "Cheap"]);
+    expect(planUpgrades(r, "defence", priceOf).best).toEqual([]);
+  });
+
   it("respects a budget and the character's level", () => {
     const r = result([trial("Pricey", "Ring 1", { CombinedDPS: 1300 }), trial("High", "Ring 1", { CombinedDPS: 1100 }, { level: 95 })]);
     expect(planUpgrades(r, "damage", priceOf, { budget: 100 }).best).toEqual([]);

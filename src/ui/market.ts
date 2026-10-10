@@ -6,7 +6,7 @@ import {
   ninjaItemsUrl,
   parseNinjaLines,
   pickLeagues,
-  TRADE_LEAGUES_URL,
+  NINJA_LEAGUES_URL,
   UNIQUE_TYPES,
   UniquePrices,
   type NinjaCurrencyLine,
@@ -17,15 +17,15 @@ import { isTauri } from "../data/db";
 import previewCurrency from "../core/__fixtures__/ninja-currency.json";
 import previewGems from "../core/__fixtures__/ninja-gems.json";
 import previewUniques from "../core/__fixtures__/ninja-uniques.json";
-import previewLeagues from "../core/__fixtures__/trade-leagues.json";
+import previewLeagues from "../core/__fixtures__/ninja-index-state.json";
 
 /** poe.ninja updates hourly-ish; the design doc asks for at least 15 minutes of caching (§4). */
 const CACHE_MS = 30 * 60 * 1000;
 const cache = new Map<string, { at: number; data: Promise<unknown> }>();
 
 function preview(url: string): unknown {
-  if (url === TRADE_LEAGUES_URL) return previewLeagues;
-  if (url.includes("currencyoverview")) return previewCurrency;
+  if (url === NINJA_LEAGUES_URL) return previewLeagues;
+  if (url.includes("/currency/overview")) return previewCurrency;
   if (url.includes("type=SkillGem")) return previewGems;
   if (url.includes("type=UniqueArmour")) return previewUniques;
   return { lines: [] };
@@ -44,7 +44,7 @@ function getJson(url: string): Promise<unknown> {
 }
 
 export async function loadLeagues() {
-  return pickLeagues(await getJson(TRADE_LEAGUES_URL));
+  return pickLeagues(await getJson(NINJA_LEAGUES_URL));
 }
 
 export interface UniqueMarket {

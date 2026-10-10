@@ -29,11 +29,14 @@ export interface NinjaCurrencyLine {
 /** poe.ninja's item pages the item upgrade advisor reads. */
 export const UNIQUE_TYPES = ["UniqueWeapon", "UniqueArmour", "UniqueAccessory", "UniqueFlask", "UniqueJewel"] as const;
 
+/** poe.ninja's PoE 1 API (it moved from `/api/data/`; checked 2026-10-10). */
+const NINJA = "https://poe.ninja/poe1/api";
 export const ninjaItemsUrl = (league: string, type: string) =>
-  `https://poe.ninja/api/data/itemoverview?league=${encodeURIComponent(league)}&type=${type}`;
+  `${NINJA}/economy/stash/current/item/overview?league=${encodeURIComponent(league)}&type=${type}`;
 export const ninjaCurrencyUrl = (league: string) =>
-  `https://poe.ninja/api/data/currencyoverview?league=${encodeURIComponent(league)}&type=Currency`;
-export const TRADE_LEAGUES_URL = "https://www.pathofexile.com/api/trade/data/leagues";
+  `${NINJA}/economy/stash/current/currency/overview?league=${encodeURIComponent(league)}&type=Currency`;
+/** poe.ninja's league list (the trade site's own list refuses requests without a login). */
+export const NINJA_LEAGUES_URL = `${NINJA}/data/index-state`;
 
 /** Reads poe.ninja's `{ lines: [...] }`, dropping rows without a name or price. */
 export function parseNinjaLines<T extends { chaosValue?: number; chaosEquivalent?: number }>(json: unknown): T[] {
@@ -49,17 +52,15 @@ export function parseNinjaLines<T extends { chaosValue?: number; chaosEquivalent
 }
 
 /**
- * The current challenge league from the trade site's league list: the first PC
- * league that isn't Standard, Hardcore, Ruthless, SSF or private. Every
- * league is returned too, for the player to choose.
+ * The leagues poe.ninja prices (`economyLeagues` of its index state). The
+ * current challenge league is the first that isn't Standard, Hardcore,
+ * Ruthless or SSF.
  */
 export function pickLeagues(json: unknown): { current: string | null; all: string[] } {
-  const result = (json as { result?: unknown })?.result;
-  if (!Array.isArray(result)) throw new Error("The trade site sent something unexpected (no league list)");
-  const all = result
-    .filter((l) => l && typeof l.id === "string" && (l.realm === undefined || l.realm === "pc"))
-    .map((l) => l.id as string);
-  const current = all.find((id) => !/^Standard$|Hardcore|HC\b|Ruthless|SSF|\(PL\d+\)/i.test(id)) ?? null;
+  const leagues = (json as { economyLeagues?: unknown })?.economyLeagues;
+  if (!Array.isArray(leagues)) throw new Error("poe.ninja sent something unexpected (no league list)");
+  const all = leagues.filter((l) => l && typeof l.name === "string").map((l) => l.name as string);
+  const current = all.find((name) => !/^Standard$|Hardcore|HC\b|Ruthless|SSF/i.test(name)) ?? null;
   return { current, all };
 }
 
@@ -88,17 +89,29 @@ const cheapest = (lines: NinjaItemLine[]) => lines.reduce<NinjaItemLine | null>(
 
 const listed = (l: NinjaItemLine) => l.listingCount === undefined || l.listingCount > 0;
 
-/** Unique prices by name and base: the cheapest normal (not relic, not 5/6-linked) listing. */
+/**
+ * Unique prices by name and base: the cheapest normal (not relic, not 5/6-linked)
+ * listing. Foulborn (mutated) uniques are left out: Path of Building's unique
+ * list doesn't have them, and their price depends on which mods mutated.
+ */
 export class UniquePrices {
   private byName = new Map<string, NinjaItemLine[]>();
+  /** Foulborn listings left out. */
+  readonly foulborn: number = 0;
 
   constructor(lines: NinjaItemLine[]) {
+    let foulborn = 0;
     for (const l of lines) {
+      if (/^Foulborn /.test(l.name)) {
+        foulborn++;
+        continue;
+      }
       if (l.itemClass === 9 || !listed(l)) continue;
       const list = this.byName.get(l.name) ?? [];
       list.push(l);
       this.byName.set(l.name, list);
     }
+    this.foulborn = foulborn;
   }
 
   /** Names with a price, for the engine to try. */

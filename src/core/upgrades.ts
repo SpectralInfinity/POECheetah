@@ -71,11 +71,18 @@ export interface UpgradeAdvice extends UniqueTrial {
 const MIN_GAIN = 0.01;
 /** Prices under 1c count as 1c, so near-free items don't swamp the ranking. */
 const MIN_PRICE = 1;
+/** Losing more than this share of DPS or effective HP isn't an upgrade for any goal. */
+const MAX_LOSS = 0.3;
+/** Best buys per kind of slot (flasks, rings, jewels…), so one kind doesn't fill the list. */
+const PER_KIND = 2;
+
+/** "Flask 3" → "Flask", "Ring 2" → "Ring", "Socket #4" → "Socket". */
+const slotKind = (slot: string) => slot.replace(/\s*#?\d+$/, "");
 
 export interface UpgradePlan {
   /** The main skill deals no damage in PoB, so only defence can rank (as in the passive advisor). */
   noDamage: boolean;
-  /** Best gain per chaos first, one entry per item (its best slot). */
+  /** Best gain per chaos first, one entry per item (its best slot), at most two per kind of slot. */
   best: UpgradeAdvice[];
   /** Per slot, its best upgrades by gain. */
   bySlot: { slot: string; slotName: string; current: string | null; upgrades: UpgradeAdvice[] }[];
@@ -104,7 +111,7 @@ export function planUpgrades(
     const dps = change(r.before.CombinedDPS ?? 0, t.stats.CombinedDPS ?? 0);
     const ehp = change(r.before.TotalEHP ?? 0, t.stats.TotalEHP ?? 0);
     const gain = goalGain(goal, dps, ehp);
-    if (gain < MIN_GAIN) continue;
+    if (gain < MIN_GAIN || dps < -MAX_LOSS || ehp < -MAX_LOSS) continue;
     const costs = drawbacks(r.before, t.stats);
     if (avoidsDrawbacks(goal) && costs.length > 0) continue;
     const slotLinks = links.get(t.slotName) ?? 0;
@@ -126,7 +133,16 @@ export function planUpgrades(
     const seen = bestPerItem.get(key);
     if (!seen || a.gain > seen.gain) bestPerItem.set(key, a);
   }
-  const best = [...bestPerItem.values()].sort((a, b) => b.perChaos - a.perChaos || b.gain - a.gain).slice(0, limit);
+  const perKind = new Map<string, number>();
+  const best = [...bestPerItem.values()]
+    .sort((a, b) => b.perChaos - a.perChaos || b.gain - a.gain)
+    .filter((a) => {
+      const kind = slotKind(a.slot);
+      const n = perKind.get(kind) ?? 0;
+      perKind.set(kind, n + 1);
+      return n < PER_KIND;
+    })
+    .slice(0, limit);
 
   const bySlot = r.slots
     .map((s) => ({

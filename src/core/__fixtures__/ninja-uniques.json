@@ -1,9 +1,71 @@
-{"lines":[
- {"id":10,"name":"Kaom's Heart","baseType":"Glorious Plate","itemClass":3,"chaosValue":150,"listingCount":40},
- {"id":11,"name":"Kaom's Heart","baseType":"Glorious Plate","itemClass":3,"links":6,"chaosValue":900,"listingCount":6},
- {"id":12,"name":"Kaom's Heart","baseType":"Glorious Plate","itemClass":9,"chaosValue":20000,"listingCount":1},
- {"id":13,"name":"Le Heup of All","baseType":"Iron Ring","itemClass":3,"chaosValue":0.5,"listingCount":200},
- {"id":14,"name":"Precursor's Emblem","baseType":"Topaz Ring","itemClass":3,"chaosValue":8,"listingCount":3},
- {"id":15,"name":"Precursor's Emblem","baseType":"Two-Stone Ring","itemClass":3,"chaosValue":25,"listingCount":9},
- {"id":16,"name":"Tabula Rasa","baseType":"Simple Robe","itemClass":3,"links":6,"chaosValue":10,"listingCount":50}
-]}
+{
+ "lines": [
+  {
+   "id": 10,
+   "name": "Kaom's Heart",
+   "baseType": "Glorious Plate",
+   "itemClass": 3,
+   "chaosValue": 150,
+   "listingCount": 40
+  },
+  {
+   "id": 11,
+   "name": "Kaom's Heart",
+   "baseType": "Glorious Plate",
+   "itemClass": 3,
+   "links": 6,
+   "chaosValue": 900,
+   "listingCount": 6
+  },
+  {
+   "id": 12,
+   "name": "Kaom's Heart",
+   "baseType": "Glorious Plate",
+   "itemClass": 9,
+   "chaosValue": 20000,
+   "listingCount": 1
+  },
+  {
+   "id": 13,
+   "name": "Le Heup of All",
+   "baseType": "Iron Ring",
+   "itemClass": 3,
+   "chaosValue": 0.5,
+   "listingCount": 200
+  },
+  {
+   "id": 14,
+   "name": "Precursor's Emblem",
+   "baseType": "Topaz Ring",
+   "itemClass": 3,
+   "chaosValue": 8,
+   "listingCount": 3
+  },
+  {
+   "id": 15,
+   "name": "Precursor's Emblem",
+   "baseType": "Two-Stone Ring",
+   "itemClass": 3,
+   "chaosValue": 25,
+   "listingCount": 9
+  },
+  {
+   "id": 16,
+   "name": "Tabula Rasa",
+   "baseType": "Simple Robe",
+   "itemClass": 3,
+   "links": 6,
+   "chaosValue": 10,
+   "listingCount": 50
+  },
+  {
+   "id": 17,
+   "name": "Foulborn Kaom's Heart",
+   "baseType": "Glorious Plate",
+   "variant": "Life",
+   "itemClass": 3,
+   "chaosValue": 300,
+   "listingCount": 4
+  }
+ ]
+}

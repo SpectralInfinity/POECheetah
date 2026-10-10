@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import currency from "./__fixtures__/ninja-currency.json";
 import gems from "./__fixtures__/ninja-gems.json";
 import uniques from "./__fixtures__/ninja-uniques.json";
-import leagues from "./__fixtures__/trade-leagues.json";
+import leagues from "./__fixtures__/ninja-index-state.json";
 import {
   divinePrice,
   formatPrice,
   gemPrice,
+  ninjaCurrencyUrl,
+  ninjaItemsUrl,
   gemQuery,
   parseNinjaLines,
   pickLeagues,
@@ -21,12 +23,21 @@ const gemLines = parseNinjaLines<NinjaItemLine>(gems);
 const prices = new UniquePrices(parseNinjaLines<NinjaItemLine>(uniques));
 
 describe("market data", () => {
-  it("picks the current challenge league from the trade site's list", () => {
+  it("picks the current challenge league from poe.ninja's league list", () => {
     const { current, all } = pickLeagues(leagues);
     expect(current).toBe("Mercenaries");
-    expect(all).toEqual(["Mercenaries", "Hardcore Mercenaries", "SSF Mercenaries", "Standard", "Hardcore"]);
-    expect(pickLeagues({ result: [{ id: "Standard", realm: "pc" }] }).current).toBeNull();
+    expect(all).toEqual(["Mercenaries", "Hardcore Mercenaries", "Standard", "Hardcore"]);
+    expect(pickLeagues({ economyLeagues: [{ name: "SSF Allflame" }, { name: "Standard" }] }).current).toBeNull();
     expect(() => pickLeagues({ error: "x" })).toThrow(/league list/);
+  });
+
+  it("uses poe.ninja's PoE 1 API addresses", () => {
+    expect(ninjaItemsUrl("Hardcore Allflame", "SkillGem")).toBe(
+      "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Hardcore%20Allflame&type=SkillGem",
+    );
+    expect(ninjaCurrencyUrl("Allflame")).toBe(
+      "https://poe.ninja/poe1/api/economy/stash/current/currency/overview?league=Allflame&type=Currency",
+    );
   });
 
   it("drops malformed poe.ninja rows and rejects a page without lines", () => {
@@ -40,7 +51,9 @@ describe("market data", () => {
     expect(prices.price("Precursor's Emblem", "Topaz Ring")).toEqual({ chaos: 8, thin: true });
     expect(prices.price("Tabula Rasa", "Simple Robe")).toEqual({ chaos: 10, thin: false, note: "6-linked" });
     expect(prices.price("Headhunter", "Leather Belt")).toBeNull();
+    // Foulborn (mutated) uniques aren't in Path of Building's list.
     expect(prices.names()).toEqual(["Kaom's Heart", "Le Heup of All", "Precursor's Emblem", "Tabula Rasa"]);
+    expect(prices.foulborn).toBe(1);
   });
 
   it("prices support gems uncorrupted at the calculated level, and finds those nobody sells", () => {

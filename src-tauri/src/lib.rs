@@ -92,12 +92,10 @@ async fn pob_rare_search(
 
 /// Sites the app reads market data from (design doc §4): public pages only, no login.
 fn market_url_allowed(url: &str) -> bool {
-    ["https://poe.ninja/api/", "https://www.pathofexile.com/api/trade/data/"]
-        .iter()
-        .any(|prefix| url.starts_with(prefix))
+    url.starts_with("https://poe.ninja/poe1/api/")
 }
 
-/// Fetches public market data (poe.ninja prices, the trade site's league list) as text.
+/// Fetches public market data (poe.ninja prices and leagues) as text.
 #[tauri::command]
 async fn market_get(url: String) -> Result<String, String> {
     if !market_url_allowed(&url) {
@@ -163,10 +161,12 @@ mod tests {
 
     #[test]
     fn market_data_comes_only_from_public_market_sites() {
-        assert!(market_url_allowed("https://poe.ninja/api/data/itemoverview?league=Standard&type=SkillGem"));
-        assert!(market_url_allowed("https://www.pathofexile.com/api/trade/data/leagues"));
+        assert!(market_url_allowed(
+            "https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=Standard&type=SkillGem"
+        ));
+        assert!(market_url_allowed("https://poe.ninja/poe1/api/data/index-state"));
         assert!(!market_url_allowed("https://www.pathofexile.com/character-window/get-stash-items"));
-        assert!(!market_url_allowed("https://poe.ninja.example.com/api/"));
-        assert!(!market_url_allowed("http://poe.ninja/api/data"));
+        assert!(!market_url_allowed("https://poe.ninja.example.com/poe1/api/"));
+        assert!(!market_url_allowed("http://poe.ninja/poe1/api/data/index-state"));
     }
 }

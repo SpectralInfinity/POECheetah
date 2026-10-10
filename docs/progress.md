@@ -127,11 +127,16 @@
   list. Gem prices: uncorrupted at the calculated level, else level 1 ("level
   it"); no listing → left out as not sold (catches Awakened GMP). PoB gem
   names lack " Support"; prices and trade links add it.
-  **Not checked:** poe.ninja and the trade site were unreachable from the
-  cloud environment, so the parsing follows poe.ninja's `itemoverview` /
-  `currencyoverview` format from memory (`lines`, `chaosValue`,
-  `listingCount`, `gemLevel`, `corrupted`, `links`, `itemClass`). If prices
-  don't load in the app, the error text names the URL; check its JSON.
+  Checked against live poe.ninja (Allflame, once the environment allowed
+  it): its API moved to `https://poe.ninja/poe1/api/` (old `/api/data/`
+  answers "not found"); fields as expected. Leagues now come from poe.ninja's
+  `data/index-state`: the trade site's league list answers 403 without a
+  login. Foulborn uniques (556 listings) aren't in PoB's list and are skipped.
+  Only Awakened Empower/Enhance/Enlighten are listed, so the rule catches the
+  rest (Reliquarian: Awakened Deadly Ailments, GMP, Vicious Projectiles left
+  out; Cruelty +3% for ~37c suggested). Best buys keep two per kind of slot
+  and drop anything losing > 30% DPS or EHP (any main-hand weapon kills
+  Poisonous Concoction: DPS −100%).
   On the Reliquarian (bossing) only flask uniques pass without drawbacks
   (most items lower max fire res or EHP > 5%); Damage shows Qotra's
   Regulator +27% DPS, The Covenant +33% (−66% EHP). Path of Building values

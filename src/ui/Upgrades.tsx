@@ -173,6 +173,8 @@ export function ItemUpgrades(props: {
             rolls. Cluster and timeless jewels aren't tried (they reshape the tree).
             {current.result.missing.length > 0 &&
               ` ${current.result.missing.length} uniques poe.ninja lists aren't in the bundled Path of Building.`}
+            {current.market.prices.foulborn > 0 &&
+              ` Foulborn uniques (${current.market.prices.foulborn} listings) aren't tried: Path of Building's list doesn't have them.`}
           </p>
           <div className="actions">
             <button type="button" className="link" onClick={run} disabled={props.disabled || busy !== ""}>

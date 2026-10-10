@@ -1,7 +1,9 @@
 Made-up responses shaped like the real services, for tests (tests never call
 the network). Names are real game items; prices and counts are invented.
 
-- `trade-leagues.json`: the trade site's `api/trade/data/leagues`.
-- `ninja-gems.json`: poe.ninja `itemoverview?type=SkillGem`.
-- `ninja-uniques.json`: poe.ninja `itemoverview?type=UniqueArmour` (and alike).
-- `ninja-currency.json`: poe.ninja `currencyoverview?type=Currency`.
+Shapes checked against the live API on 2026-10-10 (`https://poe.ninja/poe1/api/`).
+
+- `ninja-index-state.json`: `data/index-state` (leagues).
+- `ninja-gems.json`: `economy/stash/current/item/overview?type=SkillGem`.
+- `ninja-uniques.json`: the same with `type=UniqueArmour` (and alike).
+- `ninja-currency.json`: `economy/stash/current/currency/overview?type=Currency`.
