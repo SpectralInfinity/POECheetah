@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { APP_BUILD, APP_VERSION } from "../buildInfo";
 import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
+import { change, pantheonAdvice, supportAdvice, type Analysis } from "../core/analysis";
 import { checkBuild, diffFindings, type Finding } from "../core/health";
 import { diffStats, formatStat, HEADLINE_STATS, type Stats } from "../core/stats";
 import {
@@ -12,7 +13,7 @@ import {
   type SavedBuild,
 } from "../data/builds";
 import { isTauri, openDb } from "../data/db";
-import { calculate, tryItem, type ItemTrial } from "./pob";
+import { analyse, calculate, tryItem, type ItemTrial } from "./pob";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -172,6 +173,7 @@ export function App() {
             onUpdate={addVersion}
             onRecalculate={recalculate}
             onTryItem={async (item) => tryItem(await decodeBuildCode(active.latest.code), item)}
+            onAnalyse={async () => analyse(await decodeBuildCode(active.latest.code))}
             onRename={(name) => run("", async () => (await store!.rename(active.id, name), await refresh(active.id)))}
             onDelete={() => run("", async () => (await store!.remove(active.id), await refresh(null)))}
           />
@@ -224,6 +226,7 @@ function BuildView(props: {
   onUpdate: (code: string) => void;
   onRecalculate: (v: BuildVersion) => void;
   onTryItem: (item: string) => Promise<ItemTrial>;
+  onAnalyse: () => Promise<Analysis>;
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
@@ -286,6 +289,8 @@ function BuildView(props: {
       </section>
 
       {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
+
+      {latest.stats && <DeepAnalysis key={`a${latest.id}`} disabled={props.disabled} onRun={props.onAnalyse} />}
 
       {latest.stats && (
         <TryItem
@@ -477,5 +482,134 @@ function TryItem(props: { level: number; disabled: boolean; onTry: (item: string
         );
       })}
     </section>
+  );
+}
+
+const pct = (x: number) => `${x > 0 ? "+" : ""}${Math.round(x * 100)}%`;
+
+function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis> }) {
+  const [result, setResult] = useState<Analysis | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    setBusy(true);
+    setError("");
+    try {
+      setResult(await props.onRun());
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const a = result;
+  const dps = (s: Stats) => s.CombinedDPS ?? 0;
+  const ehp = (s: Stats) => s.TotalEHP ?? 0;
+  return (
+    <section className="panel">
+      <h3>Honest DPS, bosses, gems and pantheon</h3>
+      {!a && (
+        <>
+          <p className="muted small">
+            Recalculates your build without situational assumptions, against uber bosses, with each pantheon and
+            with other support gems. Takes up to a minute on a big build.
+          </p>
+          <div className="actions">
+            <button type="button" onClick={run} disabled={props.disabled || busy}>
+              {busy ? "Analysing…" : "Analyse"}
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p className="error">{error}</p>}
+      {a && (
+        <>
+          <table className="scenarios">
+            <thead>
+              <tr>
+                <th />
+                <th>Combined DPS</th>
+                <th>Effective HP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>As configured (enemy: {a.enemyIsBoss})</td>
+                <td>{formatStat("number", dps(a.configured))}</td>
+                <td>{formatStat("number", ehp(a.configured))}</td>
+              </tr>
+              <tr>
+                <td>Without situational assumptions</td>
+                <td>
+                  {formatStat("number", dps(a.conservative))} <span className="muted">{pct(change(dps(a.configured), dps(a.conservative)))}</span>
+                </td>
+                <td>{formatStat("number", ehp(a.conservative))}</td>
+              </tr>
+              <tr>
+                <td>Against uber pinnacle bosses</td>
+                <td>
+                  {formatStat("number", dps(a.uber))} <span className="muted">{pct(change(dps(a.configured), dps(a.uber)))}</span>
+                </td>
+                <td>{formatStat("number", ehp(a.uber))}</td>
+              </tr>
+            </tbody>
+          </table>
+          {a.cleared.length > 0 && (
+            <details>
+              <summary className="small">Assumptions turned off ({a.cleared.length})</summary>
+              <ul className="small">
+                {a.cleared.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <Supports analysis={a} />
+          <Pantheon title="Major god" group={a.pantheonMajor} ehp={ehp(a.configured)} />
+          <Pantheon title="Minor god" group={a.pantheonMinor} ehp={ehp(a.configured)} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function Supports({ analysis }: { analysis: Analysis }) {
+  if (!analysis.supports) return <p className="muted small">No support gems to rank for the main skill.</p>;
+  const advice = supportAdvice(analysis.supports);
+  return (
+    <div>
+      <h4>Support gems</h4>
+      {advice.better.length === 0 ? (
+        <p className="small">No support beats your current links.</p>
+      ) : (
+        <ul className="changes">
+          {advice.better.map((b) => (
+            <li key={b.name} className="up">
+              Replace {advice.replacing} with {b.name}: {pct(b.gain)} DPS
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted small">
+        What each current support is worth:{" "}
+        {advice.worth.map((w) => `${w.name} ${Math.round(w.loss * 100)}%`).join(" · ")}. Candidates at level 20,
+        quality 0.
+      </p>
+    </div>
+  );
+}
+
+function Pantheon(props: { title: string; group: Analysis["pantheonMajor"]; ehp: number }) {
+  const advice = pantheonAdvice(props.group, props.ehp);
+  let text: string;
+  if (advice.noDifference) text = "None of them changes your effective HP or max hits; choose by their other effects.";
+  else if (advice.best && advice.gain > 0.005) text = `${advice.best.label} gives ${pct(advice.gain)} effective HP over your current choice.`;
+  else text = "Your current choice is already the best for effective HP.";
+  return (
+    <p className="small">
+      <strong>{props.title}:</strong> {text}
+    </p>
   );
 }

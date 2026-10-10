@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Analysis } from "../core/analysis";
 import type { Stats } from "../core/stats";
 import { isTauri } from "../data/db";
 
@@ -30,6 +31,12 @@ export async function calculate(xml: string): Promise<PobResult> {
 export async function tryItem(xml: string, item: string): Promise<ItemTrial> {
   if (!isTauri()) return previewTrial(xml, item);
   return invoke<ItemTrial>("pob_try_item", { xml, item });
+}
+
+/** Honest DPS, boss check, pantheon and support gem ranking (about 30 s on a big build). */
+export async function analyse(xml: string): Promise<Analysis> {
+  if (!isTauri()) return previewAnalysis(xml);
+  return invoke<Analysis>("pob_analyse", { xml });
 }
 
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
@@ -79,5 +86,32 @@ function previewTrial(xml: string, item: string): ItemTrial {
     item: name,
     before,
     slots: ["Ring 1", "Ring 2"].map((slot) => ({ slot, replaces: "Betrayal's Sting, Steel Ring", stats: after })),
+  };
+}
+
+function previewAnalysis(xml: string): Analysis {
+  const configured = previewResult(xml).stats;
+  const scaled = (k: number) => ({ ...configured, CombinedDPS: configured.CombinedDPS * k, TotalEHP: configured.TotalEHP * (0.5 + k / 2) });
+  const god = (value: string, ehp: number) => ({ value, label: `Soul of ${value}`, stats: { TotalEHP: ehp } });
+  return {
+    configured,
+    conservative: scaled(0.53),
+    cleared: ["Is the enemy Ignited?", "Is the enemy Chilled?", "# of Withered Stacks: 15"],
+    enemyIsBoss: "Guardian/Pinnacle Boss",
+    uber: scaled(0.3),
+    pantheonMajor: {
+      current: "Lunaris",
+      options: [god("Lunaris", configured.TotalEHP), god("Solaris", configured.TotalEHP * 0.91)],
+    },
+    pantheonMinor: { current: "Ryslatha", options: [god("Gruthkul", configured.TotalEHP), god("Yugul", configured.TotalEHP)] },
+    supports: {
+      baseDps: configured.CombinedDPS,
+      current: [
+        { name: "Greater Multiple Projectiles", dpsWithout: configured.CombinedDPS * 0.74 },
+        { name: "Unbound Ailments", dpsWithout: configured.CombinedDPS * 0.64 },
+      ],
+      replacing: "Greater Multiple Projectiles",
+      candidates: [{ name: "Awakened Deadly Ailments", stats: { CombinedDPS: configured.CombinedDPS * 1.059 } }],
+    },
   };
 }

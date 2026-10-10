@@ -277,3 +277,24 @@ button.danger {
 .trial h4 {
   margin: 0;
 }
+
+.scenarios {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.scenarios th,
+.scenarios td {
+  text-align: left;
+  padding: 4px 16px 4px 0;
+}
+
+.scenarios th {
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 0.85rem;
+}
+
+.panel h4 {
+  margin: 4px 0;
+}

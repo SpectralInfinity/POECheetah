@@ -1,5 +1,5 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
-//! `cargo run --release --example stats -- build.xml [--all | --item item.txt]`
+//! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse]`
 
 use std::path::PathBuf;
 
@@ -13,6 +13,18 @@ fn main() {
     let build = engine.load_build(&xml).expect("load build");
     println!("main skill: {}", build.main_skill.as_deref().unwrap_or("-"));
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--analyse") {
+        let t = std::time::Instant::now();
+        let analysis = engine.analyse(&xml).expect("analyse");
+        let mut v = analysis.clone();
+        for key in ["configured", "conservative", "uber"] {
+            let stats = &analysis[key];
+            v[key] = serde_json::json!({ "CombinedDPS": stats["CombinedDPS"], "TotalEHP": stats["TotalEHP"] });
+        }
+        println!("{}", serde_json::to_string_pretty(&v).unwrap());
+        println!("analyse {:.1}s", t.elapsed().as_secs_f32());
+        return;
+    }
     if let Some(i) = args.iter().position(|a| a == "--item") {
         let item = std::fs::read_to_string(&args[i + 1]).expect("read item text");
         let trial = engine.try_item(&xml, &item).expect("try item");

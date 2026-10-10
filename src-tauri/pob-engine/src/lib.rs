@@ -55,11 +55,16 @@ pub struct ItemTrial {
     pub slots: Vec<SlotTrial>,
 }
 
+/// Honest DPS, boss check, pantheon and support gem ranking (design doc §3.9),
+/// passed through as PoB's JSON-like result; the UI reads its fields.
+pub type Analysis = serde_json::Value;
+
 type Reply<T> = mpsc::Sender<Result<T, String>>;
 
 enum Job {
     LoadBuild(String, Reply<BuildStats>),
     TryItem(String, String, Reply<ItemTrial>),
+    Analyse(String, Reply<Analysis>),
 }
 
 /// Handle to the engine thread. Cheap to share; requests run one at a time.
@@ -101,6 +106,9 @@ impl Engine {
                         Job::TryItem(xml, item, reply) => {
                             let _ = reply.send(api.try_item(&xml, &item));
                         }
+                        Job::Analyse(xml, reply) => {
+                            let _ = reply.send(api.analyse(&xml));
+                        }
                     }
                 }
             })
@@ -133,12 +141,26 @@ impl Engine {
             .recv()
             .map_err(|_| "Path of Building stopped while trying the item".to_string())?
     }
+
+    /// Recalculates the build under conservative settings, against uber
+    /// bosses, with each pantheon, and with alternative support gems.
+    /// Takes tens of seconds on a large build.
+    pub fn analyse(&self, xml: &str) -> Result<Analysis, String> {
+        let (reply, result) = mpsc::channel();
+        self.jobs
+            .send(Job::Analyse(xml.to_string(), reply))
+            .map_err(|_| "Path of Building is not running".to_string())?;
+        result
+            .recv()
+            .map_err(|_| "Path of Building stopped while analysing the build".to_string())?
+    }
 }
 
 struct Api {
     lua: Lua,
     load_build: Function,
     try_item: Function,
+    analyse: Function,
 }
 
 impl Api {
@@ -147,6 +169,16 @@ impl Api {
             .load_build
             .call(xml)
             .map_err(|e| format!("Path of Building could not load the build: {}", lua_message(&e)))?;
+        self.lua
+            .from_value(value)
+            .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
+    }
+
+    fn analyse(&self, xml: &str) -> Result<Analysis, String> {
+        let value: Value = self
+            .analyse
+            .call(xml)
+            .map_err(|e| format!("Path of Building could not analyse the build: {}", lua_message(&e)))?;
         self.lua
             .from_value(value)
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
@@ -190,7 +222,8 @@ fn start_lua(pob_dir: &str) -> Result<Api, String> {
         .map_err(fail)?;
     let load_build: Function = api.get("loadBuild").map_err(fail)?;
     let try_item: Function = api.get("tryItem").map_err(fail)?;
-    Ok(Api { lua, load_build, try_item })
+    let analyse: Function = api.get("analyse").map_err(fail)?;
+    Ok(Api { lua, load_build, try_item, analyse })
 }
 
 /// Error text without mlua's wrapping (PoB's own messages are what matter).

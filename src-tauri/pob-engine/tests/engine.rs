@@ -89,3 +89,21 @@ fn reports_text_that_is_not_an_item() {
     let err = engine.try_item(xml, "hello").unwrap_err();
     assert!(err.contains("couldn't read that item"), "{err}");
 }
+
+#[test]
+fn analyses_a_build_and_leaves_it_unchanged() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let before = engine.load_build(xml).expect("build loads");
+    let analysis = engine.analyse(xml).expect("analysed");
+
+    assert_eq!(analysis["configured"]["CombinedDPS"].as_f64(), before.stats.get("CombinedDPS").copied());
+    assert_eq!(analysis["cleared"].as_array().map_or(0, |a| a.len()), 0, "fixture changes no PoB defaults");
+    assert!(analysis["uber"]["CombinedDPS"].as_f64().unwrap() < before.stats["CombinedDPS"]);
+    assert_eq!(analysis["pantheonMajor"]["options"].as_array().unwrap().len(), 4);
+    assert!(analysis["supports"].is_null(), "Fireball alone has no supports to rank");
+
+    let after = engine.load_build(xml).expect("build loads again");
+    assert_eq!(after.stats.get("CombinedDPS"), before.stats.get("CombinedDPS"));
+}

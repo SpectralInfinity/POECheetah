@@ -12,7 +12,9 @@
 - [x] 2. Build health check + try an item.
       (Built 2026-10-10 as v0.3.0; tick once the warnings on your build make
       sense and trying an item from the game works.)
-- [ ] 3. Honest DPS and boss check; support gem / pantheon / flask ranking.
+- [x] 3. Honest DPS and boss check; support gem and pantheon ranking.
+      (Built 2026-10-10 as v0.4.0; flask ranking moved to session 5 with
+      item upgrades. Tick once the analysis on your build makes sense.)
 - [ ] 4. Passive advisor.
 - [ ] 5. Item upgrade advisor.
 - [ ] 6. Item check from the game clipboard.
@@ -66,6 +68,19 @@
   `cargo run --release --example stats -- build.xml --item item.txt`.
   On the reference build the check found: weak to chaos hits, 88% hit
   chance, intelligence 91/98, small pool; cold/lightning "covered".
+
+- **3:** Engine `analyse` (Lua, `engine.lua`): changes config inputs or the
+  weakest support gem, recalculates (`configTab:BuildModList`, `buildFlag`,
+  `OnFrame`), restores the build exactly. "Conservative" clears the options
+  in PoB's "When In Combat" and "For Effective DPS" sections that the player
+  changed (not list modes, not PoB's own defaults); boss = `enemyIsBoss`
+  "Uber" (PoB's default is Pinnacle); pantheon ranked by effective HP;
+  supports: each current one's worth, then every compatible support
+  replacing the least valuable (level 20, quality 0). ~30 s on the reference
+  build. Reference results: 5.36M → 2.82M without assumptions (−47%), 1.63M
+  vs uber; Awakened Deadly Ailments for GMP +5.9%; Lunaris already best.
+  Also v0.3.1: app renamed "POE Cheetah" (IDs unchanged); a capped-resist
+  weakest damage type is a note, uncapped or negative stays a warning.
 
 ## Usage log (claude.ai → Settings → Usage)
 

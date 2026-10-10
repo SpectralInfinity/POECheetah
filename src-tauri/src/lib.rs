@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use pob_engine::{BuildStats, Engine, ItemTrial};
+use pob_engine::{Analysis, BuildStats, Engine, ItemTrial};
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -51,6 +51,14 @@ async fn pob_try_item(app: tauri::AppHandle, xml: String, item: String) -> Resul
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Honest DPS, boss check, pantheon and support gem ranking (tens of seconds).
+#[tauri::command]
+async fn pob_analyse(app: tauri::AppHandle, xml: String) -> Result<Analysis, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.analyse(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -67,7 +75,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![pob_calculate, pob_try_item])
+        .invoke_handler(tauri::generate_handler![pob_calculate, pob_try_item, pob_analyse])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
 }

@@ -131,4 +131,197 @@ function api.tryItem(xmlText, itemText)
 	return { item = item.name, before = numericStats(calcBase), slots = slots }
 end
 
+-- Analysis (design doc §3.9): recalculate the loaded build under other
+-- settings and gem choices, then restore it exactly.
+
+local configOptions = LoadModule("Modules/ConfigOptions")
+
+local function recalc()
+	build.configTab:BuildModList()
+	build.buildFlag = true
+	runCallback("OnFrame")
+end
+
+local function pick(output, keys)
+	local out = {}
+	for _, key in ipairs(keys) do
+		local value = output[key]
+		if type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge then
+			out[key] = value
+		end
+	end
+	return out
+end
+
+local DEFENCE_KEYS = { "TotalEHP", "PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken",
+	"LightningMaximumHitTaken", "ChaosMaximumHitTaken" }
+local SCORE_KEYS = { "CombinedDPS", "TotalEHP" }
+
+--- Config options PoB lists under "When In Combat" and "For Effective DPS":
+--- the situational assumptions players tick to see higher numbers.
+local function assumptionOptions()
+	local options, section = {}, nil
+	for _, opt in ipairs(configOptions) do
+		if opt.section then
+			section = opt.section
+		elseif opt.var and (section == "When In Combat" or section == "For Effective DPS") then
+			options[#options + 1] = opt
+		end
+	end
+	return options
+end
+
+local function optionLabel(opt)
+	return ((opt.label or opt.var):gsub("%^%x", ""):gsub("%^x%x%x%x%x%x%x", ""):gsub(":$", ""))
+end
+
+local function listLabel(opt, value)
+	for _, entry in ipairs(opt.list or {}) do
+		if entry.val == value then return entry.label end
+	end
+	return tostring(value)
+end
+
+local function findOption(var)
+	for _, opt in ipairs(configOptions) do
+		if opt.var == var then return opt end
+	end
+end
+
+--- With the build's settings changed, run `fn` and return its result.
+--- `changes` maps config vars to values; false clears a var (PoB default).
+local function withConfig(original, changes, fn)
+	local input = build.configTab.input
+	wipeTable(input)
+	for k, v in pairs(original) do input[k] = v end
+	for k, v in pairs(changes) do
+		if v == false then input[k] = nil else input[k] = v end
+	end
+	recalc()
+	return fn(build.calcsTab.mainOutput)
+end
+
+local function mainSocketGroup()
+	return build.skillsTab.socketGroupList[build.mainSocketGroup]
+end
+
+local function supportName(gem)
+	return gem.gemData and gem.gemData.name or gem.nameSpec
+end
+
+--- Ranks support gems for the main skill: what each current support is worth,
+--- then the best replacements for the least valuable one.
+local function rankSupports(maxCandidates)
+	local group = mainSocketGroup()
+	local mainSkill = build.calcsTab.mainEnv.player.mainSkill
+	if not group or not mainSkill then return nil end
+	local base = build.calcsTab.mainOutput.CombinedDPS or 0
+	if base <= 0 then return nil end
+
+	local current, inGroup = {}, {}
+	for _, gem in ipairs(group.gemList) do
+		if gem.gemData then inGroup[gem.gemData.name] = true end
+		if gem.enabled ~= false and gem.gemData and gem.gemData.grantedEffect and gem.gemData.grantedEffect.support then
+			gem.enabled = false
+			recalc()
+			current[#current + 1] = { gem = gem, name = supportName(gem), dpsWithout = build.calcsTab.mainOutput.CombinedDPS or 0 }
+			gem.enabled = true
+		end
+	end
+	recalc()
+	if #current == 0 then return nil end
+	table.sort(current, function(a, b) return a.dpsWithout > b.dpsWithout end)
+	local weakest = current[1]
+
+	local candidates = {}
+	local gem = weakest.gem
+	local saved = { gemId = gem.gemId, skillId = gem.skillId, level = gem.level, quality = gem.quality }
+	for gemId, gemData in pairs(build.data.gems) do
+		local effect = gemData.grantedEffect
+		if effect and effect.support and not inGroup[gemData.name] and not effect.unsupported
+			and not gemData.name:match("^Vaal") and calcLib.canGrantedEffectSupportActiveSkill(effect, mainSkill) then
+			gem.gemId, gem.skillId = gemId, nil
+			build.skillsTab:ProcessSocketGroup(group)
+			gem.level = gemData.naturalMaxLevel or 20
+			gem.quality = 0
+			recalc()
+			local out = build.calcsTab.mainOutput
+			candidates[#candidates + 1] = { name = gemData.name, stats = pick(out, SCORE_KEYS) }
+		end
+	end
+	gem.gemId, gem.skillId, gem.level, gem.quality = saved.gemId, saved.skillId, saved.level, saved.quality
+	build.skillsTab:ProcessSocketGroup(group)
+	recalc()
+
+	table.sort(candidates, function(a, b) return (a.stats.CombinedDPS or 0) > (b.stats.CombinedDPS or 0) end)
+	local top = {}
+	for i = 1, math.min(maxCandidates, #candidates) do top[i] = candidates[i] end
+	local values = {}
+	for i, c in ipairs(current) do values[i] = { name = c.name, dpsWithout = c.dpsWithout } end
+	return { baseDps = base, current = values, replacing = weakest.name, candidates = top }
+end
+
+local function rankPantheon(original, var)
+	local opt = findOption(var)
+	local results = {}
+	for _, entry in ipairs(opt.list) do
+		if entry.val ~= "None" then
+			results[#results + 1] = withConfig(original, { [var] = entry.val }, function(out)
+				return { value = entry.val, label = entry.label, stats = pick(out, DEFENCE_KEYS) }
+			end)
+		end
+	end
+	return { current = original[var] or "None", options = results }
+end
+
+--- Honest DPS, boss check, pantheon and support gem ranking for build XML.
+function api.analyse(xmlText)
+	if xmlText ~= loadedXml then load(xmlText) end
+	local input = build.configTab.input
+	local original = copyTable(input)
+	local ok, result = pcall(function()
+		local configured = numericStats(build.calcsTab.mainOutput)
+
+		-- Conservative: clear every situational assumption that is set.
+		local cleared, changes = {}, {}
+		for _, opt in ipairs(assumptionOptions()) do
+			local value = original[opt.var]
+			if opt.type ~= "list" and value ~= nil and value ~= false and value ~= 0 and value ~= ""
+				and value ~= opt.defaultState then
+				changes[opt.var] = false
+				cleared[#cleared + 1] = opt.type == "check" and optionLabel(opt)
+					or (optionLabel(opt) .. ": " .. (opt.type == "list" and listLabel(opt, value) or tostring(value)))
+			end
+		end
+		local conservative = withConfig(original, changes, numericStats)
+
+		local bossOpt = findOption("enemyIsBoss")
+		local bossNow = original.enemyIsBoss or bossOpt.list[bossOpt.defaultIndex].val
+		local uber = withConfig(original, { enemyIsBoss = "Uber" }, numericStats)
+
+		local major = rankPantheon(original, "pantheonMajorGod")
+		local minor = rankPantheon(original, "pantheonMinorGod")
+
+		withConfig(original, {}, function() end)
+		local supports = rankSupports(8)
+
+		return {
+			configured = configured,
+			conservative = conservative,
+			cleared = cleared,
+			enemyIsBoss = listLabel(bossOpt, bossNow),
+			uber = uber,
+			pantheonMajor = major,
+			pantheonMinor = minor,
+			supports = supports,
+		}
+	end)
+	-- Always leave the build exactly as loaded.
+	wipeTable(input)
+	for k, v in pairs(original) do input[k] = v end
+	recalc()
+	if not ok then error(result, 0) end
+	return result
+end
+
 return api

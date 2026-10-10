@@ -2667,11 +2667,12 @@ dependencies = [
  "flate2",
  "mlua",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "poecheetah"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "pob-engine",
  "serde",
