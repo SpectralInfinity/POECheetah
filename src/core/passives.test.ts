@@ -65,6 +65,22 @@ describe("passive advisor", () => {
     expect(plan.swaps[0].score).toBeCloseTo(0.02);
   });
 
+  it("merges identical choices into one entry with a count", () => {
+    const a = node({ kind: "small", name: "Poison", stats: { CombinedDPS: 1030 } });
+    const b = node({ kind: "small", name: "Poison", stats: { CombinedDPS: 1030 } });
+    const swaps = [1050, 1080].map((dps, i) =>
+      node({ kind: "swap", name: "M", points: 0, replaces: [`old ${i}`], stats: { CombinedDPS: dps } }),
+    );
+    const plan = planPassives(result([a, b], swaps), "damage");
+    expect(plan.passives.map((p) => [p.name, p.count])).toEqual([["Poison", 2]]);
+    expect(plan.swaps.map((p) => [p.replaces, p.count])).toEqual([[["old 1"], 2]]);
+  });
+
+  it("notices a main skill without damage", () => {
+    expect(planPassives({ ...result([]), before: { ...before, CombinedDPS: 0 } }, "damage").noDamage).toBe(true);
+    expect(planPassives(result([]), "damage").noDamage).toBe(false);
+  });
+
   it("counts the points available at this level with every quest done", () => {
     const plan = planPassives(result([]), "damage");
     expect(plan.available).toBe(89 + 23 + 2);

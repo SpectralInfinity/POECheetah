@@ -1,5 +1,5 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
-//! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives]`
+//! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives [--json out.json]]`
 
 use std::path::PathBuf;
 
@@ -16,6 +16,9 @@ fn main() {
     if args.iter().any(|a| a == "--passives") {
         let t = std::time::Instant::now();
         let passives = engine.passives(&xml).expect("passives");
+        if let Some(i) = args.iter().position(|a| a == "--json") {
+            std::fs::write(&args[i + 1], passives.to_string()).expect("write JSON");
+        }
         let n = passives["candidates"].as_array().map_or(0, |a| a.len());
         let swaps = passives["masterySwaps"].as_array().map_or(0, |a| a.len());
         let before = &passives["before"];

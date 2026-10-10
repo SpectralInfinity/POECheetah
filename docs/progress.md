@@ -34,8 +34,8 @@
   environment has no WebKitGTK. PoB codes are decoded in TypeScript
   (`src/core/buildCode.ts`, `DecompressionStream("deflate")`), so the Lua
   engine can be handed XML.
-- **Reference build for sessions 1–2** (the user's character, code not
-  committed; ask for it again): level 95 Scion / Reliquarian, PoB tree 3_29,
+- **Reference build for sessions 1–2** (the user's character; its code is
+  now in `docs/test-builds/reliquarian-poison-95.txt`): level 95 Scion / Reliquarian, PoB tree 3_29,
   main skill Poisonous Concoction of Bouncing (body armour group). PoB's own
   numbers to match: Combined DPS 5,358,662 (hit 345,272 + poison), Total EHP
   56,898, life 2,959, armour 2,685, evasion 1,453, block 47%, suppression 100%,
@@ -93,7 +93,13 @@
   one entry per mastery). Points available assume every quest done
   (level − 1 + 23 + PoB's extra points). Test fixture
   `elementalist-tree.xml` is made up (116 points around the Witch start).
-  ~2 s for ~150 candidates on that fixture; untimed on the reference build.
+  ~2 s on both test builds (`docs/test-builds/`, added this session):
+  Reliquarian 220 candidates + 43 mastery swaps; the Luminary's main skill
+  (Flame Link) deals no damage, so the app ranks by defence and says why.
+  Identical choices (same stats elsewhere, same swap on two masteries)
+  show once with a count. To check on the Reliquarian: "+12% DoT multi for
+  poison on Bleeding Enemies" (+6.4%) counts though the config doesn't set
+  the enemy as bleeding.
   Dev tool: `cargo run --release --example stats -- build.xml --passives`.
   Not done: minion DPS (Combined DPS only, like session 3), the small tree
   view with the path drawn, cluster jewel notables not yet socketed.

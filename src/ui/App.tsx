@@ -293,7 +293,9 @@ function BuildView(props: {
 
       {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
 
-      {latest.stats && <NextPassives key={`p${latest.id}`} disabled={props.disabled} onRun={props.onPassives} />}
+      {latest.stats && (
+        <NextPassives key={`p${latest.id}`} mainSkill={latest.mainSkill} disabled={props.disabled} onRun={props.onPassives} />
+      )}
 
       {latest.stats && <DeepAnalysis key={`a${latest.id}`} disabled={props.disabled} onRun={props.onAnalyse} />}
 
@@ -644,6 +646,12 @@ function PassiveItem({ p, goal, unit = "point" }: { p: PassiveAdvice; goal: Goal
       <div>
         <strong>{p.name}</strong>
         {KIND_LABEL[p.kind] && <span className="muted small"> {KIND_LABEL[p.kind]}</span>}
+        {p.count > 1 && (
+          <span className="muted small">
+            {" "}
+            · {p.kind === "swap" ? `fits ${p.count} of your masteries` : `${p.count} like this within reach`}
+          </span>
+        )}
         {p.points > 0 && (
           <span className="muted small">
             {" "}
@@ -661,7 +669,7 @@ function PassiveItem({ p, goal, unit = "point" }: { p: PassiveAdvice; goal: Goal
   );
 }
 
-function NextPassives(props: { disabled: boolean; onRun: () => Promise<PassiveResult> }) {
+function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRun: () => Promise<PassiveResult> }) {
   const [result, setResult] = useState<PassiveResult | null>(null);
   const [goal, setGoal] = useState<Goal>("balanced");
   const [busy, setBusy] = useState(false);
@@ -718,6 +726,13 @@ function NextPassives(props: { disabled: boolean; onRun: () => Promise<PassiveRe
             {plan.used} of {plan.available} points spent (level {result.level}, every quest done)
             {plan.available > plan.used ? ` · ${plan.available - plan.used} to spend` : ""}.
           </p>
+          {plan.noDamage && goal !== "defence" && (
+            <p className="small">
+              Your main skill{props.mainSkill ? ` (${props.mainSkill})` : ""} deals no damage in Path of Building, so
+              passives are ranked by defence only. To rank damage, choose your damage skill as the main skill in Path of
+              Building and paste the code again.
+            </p>
+          )}
           {plan.passives.length === 0 ? (
             <p className="small">No passive within reach improves this goal{goal === "balanced" ? " without a cost" : ""}.</p>
           ) : (

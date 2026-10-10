@@ -87,6 +87,8 @@ export interface PassiveAdvice extends PassiveCandidate {
   /** The goal's gain: per point for passives, total for a mastery swap. */
   score: number;
   drawbacks: string[];
+  /** How many reachable nodes give exactly this (e.g. two identical small nodes). */
+  count: number;
 }
 
 function goalGain(goal: Goal, dps: number, ehp: number): number {
@@ -99,12 +101,14 @@ function advise(before: Stats, c: PassiveCandidate, goal: Goal): PassiveAdvice {
   const dps = change(before.CombinedDPS ?? 0, c.stats.CombinedDPS ?? 0);
   const ehp = change(before.TotalEHP ?? 0, c.stats.TotalEHP ?? 0);
   const gain = goalGain(goal, dps, ehp);
-  return { ...c, dps, ehp, score: gain / Math.max(1, c.points), drawbacks: drawbacks(before, c.stats) };
+  return { ...c, dps, ehp, score: gain / Math.max(1, c.points), drawbacks: drawbacks(before, c.stats), count: 1 };
 }
 
 /**
- * Best first, one entry per node (a mastery keeps its best effect), only real
- * gains; Balanced drops anything with a drawback.
+ * Best first, only real gains; Balanced drops anything with a drawback. One
+ * entry per node (a mastery keeps its best effect), and one per identical
+ * choice: the same stats for the same points elsewhere on the tree, or the
+ * same effect swapped onto either of two masteries of a kind (the best kept).
  */
 function rank(before: Stats, list: PassiveCandidate[], goal: Goal, limit: number): PassiveAdvice[] {
   const best = new Map<number, PassiveAdvice>();
@@ -115,10 +119,22 @@ function rank(before: Stats, list: PassiveCandidate[], goal: Goal, limit: number
     const seen = best.get(a.id);
     if (!seen || a.score > seen.score) best.set(a.id, a);
   }
-  return [...best.values()].sort((a, b) => b.score - a.score || a.points - b.points).slice(0, limit);
+  const alike = new Map<string, PassiveAdvice>();
+  for (const a of best.values()) {
+    const key = JSON.stringify([a.kind, a.name, a.lines, a.points]);
+    const seen = alike.get(key);
+    if (!seen) alike.set(key, a);
+    else {
+      const keep = a.score > seen.score ? a : seen;
+      alike.set(key, { ...keep, count: seen.count + 1 });
+    }
+  }
+  return [...alike.values()].sort((a, b) => b.score - a.score || a.points - b.points).slice(0, limit);
 }
 
 export interface PassivePlan {
+  /** The main skill deals no damage in PoB (e.g. a link or aura skill), so damage can't be ranked. */
+  noDamage: boolean;
   /** Passive points spent, and available at this level with every quest done. */
   used: number;
   available: number;
@@ -135,6 +151,7 @@ export function planPassives(r: PassiveResult, goal: Goal, limit = 10): PassiveP
   const main = r.candidates.filter((c) => c.kind !== "ascendancy");
   const asc = r.candidates.filter((c) => c.kind === "ascendancy");
   return {
+    noDamage: !((r.before.CombinedDPS ?? 0) > 0),
     used: r.pointsUsed,
     available: Math.max(0, Math.min(r.level, 100) - 1) + QUEST_POINTS + r.extraPoints,
     ascendancyUsed: r.ascendancyUsed,
