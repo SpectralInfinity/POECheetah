@@ -71,5 +71,4 @@
 | Date | Session | Window before → after | Weekly before → after | Notes |
 |---|---|---|---|---|
 | 2026-10-10 | 0. Planning + foundations | ? → 31% | ~0% → 5% | Started in a Dancing Cabbage session; repo attached mid-session |
-| 2026-10-10 | 1. PoB engine + saved builds | 31% → ? | 5% → ? | Same conversation as session 0 |
-| 2026-10-10 | 2. Health check + try an item | ? → ? | ? → ? | Same conversation |
+| 2026-10-10 | 1–2. PoB engine + saved builds; health check + try an item | 31% → 89% | 5% → 14% | Same conversation as session 0, so not separable; another session ran at the same time, so these overstate the cost |
