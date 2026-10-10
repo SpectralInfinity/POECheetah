@@ -298,3 +298,28 @@ button.danger {
 .panel h4 {
   margin: 4px 0;
 }
+
+.passives {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+ul.passives {
+  list-style: none;
+  padding-left: 0;
+}
+
+.passive .gain {
+  color: var(--good);
+}
+
+.passive .drawback {
+  color: var(--error);
+}
+
+.goal button {
+  padding: 4px 12px;
+}

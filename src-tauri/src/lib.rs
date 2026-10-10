@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use pob_engine::{Analysis, BuildStats, Engine, ItemTrial};
+use pob_engine::{Analysis, BuildStats, Engine, ItemTrial, Passives};
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -59,6 +59,14 @@ async fn pob_analyse(app: tauri::AppHandle, xml: String) -> Result<Analysis, Str
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Every passive worth taking next, calculated with its path (passive advisor).
+#[tauri::command]
+async fn pob_passives(app: tauri::AppHandle, xml: String) -> Result<Passives, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.passives(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -75,7 +83,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![pob_calculate, pob_try_item, pob_analyse])
+        .invoke_handler(tauri::generate_handler![pob_calculate, pob_try_item, pob_analyse, pob_passives])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
 }

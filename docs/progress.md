@@ -15,7 +15,9 @@
 - [x] 3. Honest DPS and boss check; support gem and pantheon ranking.
       (Built 2026-10-10 as v0.4.0; flask ranking moved to session 5 with
       item upgrades. Tick once the analysis on your build makes sense.)
-- [ ] 4. Passive advisor.
+- [x] 4. Passive advisor.
+      (Built 2026-10-10 as v0.5.0; tick once the top 10 on your build are
+      passives you'd take.)
 - [ ] 5. Item upgrade advisor.
 - [ ] 6. Item check from the game clipboard.
 - [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
@@ -82,6 +84,20 @@
   Also v0.3.1: app renamed "POE Cheetah" (IDs unchanged); a capped-resist
   weakest damage type is a note, uncapped or negative stays a warning.
 
+- **4:** Engine `passives` (Lua): every unallocated node next to the tree,
+  notables/keystones up to 4 points away (path included, PoB's `node.path`),
+  each free effect of reachable masteries, ascendancy notables within the free
+  ascendancy points, and other effects for allocated masteries (free swaps).
+  Calculated with PoB's misc calculator (`addNodes`/`removeNodes`), the build
+  untouched. Ranking in `src/core/passives.ts` (goal switch, drawbacks,
+  one entry per mastery). Points available assume every quest done
+  (level − 1 + 23 + PoB's extra points). Test fixture
+  `elementalist-tree.xml` is made up (116 points around the Witch start).
+  ~2 s for ~150 candidates on that fixture; untimed on the reference build.
+  Dev tool: `cargo run --release --example stats -- build.xml --passives`.
+  Not done: minion DPS (Combined DPS only, like session 3), the small tree
+  view with the path drawn, cluster jewel notables not yet socketed.
+
 ## Usage log (claude.ai → Settings → Usage)
 
 | Date | Session | Window before → after | Weekly before → after | Notes |
@@ -89,3 +105,4 @@
 | 2026-10-10 | 0. Planning + foundations | ? → 31% | ~0% → 5% | Started in a Dancing Cabbage session; repo attached mid-session |
 | 2026-10-10 | 1–2. PoB engine + saved builds; health check + try an item | 31% → 89% | 5% → 14% | Same conversation as session 0, so not separable; another session ran at the same time, so these overstate the cost |
 | 2026-10-10 | 3. Honest DPS, boss check, gem + pantheon ranking (+ v0.3.1 rename) | 3% → 9% | 17% → 18% | New 5-hour window, still the same long conversation |
+| 2026-10-10 | 4. Passive advisor | ? → ? | ? → ? | New conversation |

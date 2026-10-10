@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
+import type { PassiveCandidate, PassiveResult } from "../core/passives";
 import type { Stats } from "../core/stats";
 import { isTauri } from "../data/db";
 
@@ -37,6 +38,12 @@ export async function tryItem(xml: string, item: string): Promise<ItemTrial> {
 export async function analyse(xml: string): Promise<Analysis> {
   if (!isTauri()) return previewAnalysis(xml);
   return invoke<Analysis>("pob_analyse", { xml });
+}
+
+/** Every passive worth taking next, each calculated with its path (seconds to a minute). */
+export async function passives(xml: string): Promise<PassiveResult> {
+  if (!isTauri()) return previewPassives(xml);
+  return invoke<PassiveResult>("pob_passives", { xml });
 }
 
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
@@ -113,5 +120,57 @@ function previewAnalysis(xml: string): Analysis {
       replacing: "Greater Multiple Projectiles",
       candidates: [{ name: "Awakened Deadly Ailments", stats: { CombinedDPS: configured.CombinedDPS * 1.059 } }],
     },
+  };
+}
+
+function previewPassives(xml: string): PassiveResult {
+  const before = previewResult(xml).stats;
+  let id = 0;
+  const node = (
+    kind: PassiveCandidate["kind"],
+    name: string,
+    lines: string[],
+    points: number,
+    dps: number,
+    ehp: number,
+    extra: Partial<PassiveCandidate> = {},
+  ): PassiveCandidate => ({
+    id: ++id,
+    kind,
+    name,
+    lines,
+    points,
+    via: Array.from({ length: Math.max(0, points - 1) }, (_, i) => (i === 0 ? "Intelligence" : "Poison Damage")),
+    stats: { ...before, CombinedDPS: before.CombinedDPS * (1 + dps), TotalEHP: before.TotalEHP * (1 + ehp) },
+    ...extra,
+  });
+  return {
+    before,
+    level: Number(xml.match(/<Build\b[^>]*\slevel="(\d+)"/)?.[1] ?? 90),
+    pointsUsed: 112,
+    extraPoints: 0,
+    ascendancyUsed: 8,
+    candidates: [
+      node("notable", "Toxic Strikes", ["20% increased Poison Duration", "Poisons you inflict deal Damage 10% faster"], 2, 0.07, 0),
+      node("small", "Poison Damage", ["12% increased Damage with Poison"], 1, 0.021, 0),
+      node("notable", "Fending", ["+5% Chance to Block Attack Damage", "+15% to all Elemental Resistances"], 3, 0, 0.09),
+      node("mastery", "Life Mastery", ["+50 to maximum Life"], 1, 0, 0.018),
+      node("keystone", "Chaos Inoculation", ["Maximum Life becomes 1, Immune to Chaos Damage"], 3, 0.02, -0.6, {
+        stats: { ...before, Life: 1, TotalEHP: before.TotalEHP * 0.4, CombinedDPS: before.CombinedDPS * 1.02 },
+      }),
+      node("notable", "Constitution", ["+20 to Strength", "8% increased maximum Life", "+15% to Cold Resistance"], 4, 0, 0.11, {
+        stats: { ...before, ColdResist: -35, TotalEHP: before.TotalEHP * 1.11 },
+      }),
+    ],
+    masterySwaps: [
+      node("swap", "Poison Mastery", ["Poisons on you expire 50% faster"], 0, 0, 0.004, {
+        replaces: ["Poisons you inflict deal Damage 10% faster"],
+        via: [],
+      }),
+      node("swap", "Poison Mastery", ["40% increased Damage with Poison"], 0, 0.028, 0, {
+        replaces: ["Poisons you inflict deal Damage 10% faster"],
+        via: [],
+      }),
+    ],
   };
 }

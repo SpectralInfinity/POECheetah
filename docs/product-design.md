@@ -67,7 +67,7 @@ only explains them; it never invents them.
 - **poe.ninja builds:** what top characters with the same skill use (share of
   players per item, keystone, ascendancy), as extra candidates for §3.1–§3.2.
 
-### 3.1 Passive advisor (first feature)
+### 3.1 Passive advisor (built in session 4)
 
 - Candidates: every unallocated node adjacent to the tree (1 point), plus
   notables and keystones within 2–4 points (path cost = points on the path).
@@ -76,6 +76,13 @@ only explains them; it never invents them.
   small tree view later.
 - Goal switch: Damage / Defence / Balanced. Balanced must never recommend
   something that drops resists below cap or life sharply.
+- Built in session 4: engine `passives` uses PoB's own paths (`node.path`)
+  and item-compare calculator (`addNodes`/`removeNodes`), as its tree tooltip
+  does. Damage = Combined DPS, Defence = effective HP, Balanced = their average,
+  minus anything that lowers a resist or costs over 5% life, EHP or DPS (shown
+  as "Costs" under the other goals). Also lists free swaps for allocated
+  masteries, and ascendancy notables within the free ascendancy points (ranked
+  separately: they're a different kind of point).
 
 ### 3.2 Item upgrade advisor
 

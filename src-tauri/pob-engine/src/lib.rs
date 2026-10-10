@@ -59,12 +59,17 @@ pub struct ItemTrial {
 /// passed through as PoB's JSON-like result; the UI reads its fields.
 pub type Analysis = serde_json::Value;
 
+/// Passive advisor candidates (design doc §3.1), each with PoB's stats after
+/// allocating it and its path; passed through like [`Analysis`].
+pub type Passives = serde_json::Value;
+
 type Reply<T> = mpsc::Sender<Result<T, String>>;
 
 enum Job {
     LoadBuild(String, Reply<BuildStats>),
     TryItem(String, String, Reply<ItemTrial>),
     Analyse(String, Reply<Analysis>),
+    Passives(String, Reply<Passives>),
 }
 
 /// Handle to the engine thread. Cheap to share; requests run one at a time.
@@ -108,6 +113,9 @@ impl Engine {
                         }
                         Job::Analyse(xml, reply) => {
                             let _ = reply.send(api.analyse(&xml));
+                        }
+                        Job::Passives(xml, reply) => {
+                            let _ = reply.send(api.passives(&xml));
                         }
                     }
                 }
@@ -154,6 +162,19 @@ impl Engine {
             .recv()
             .map_err(|_| "Path of Building stopped while analysing the build".to_string())?
     }
+
+    /// Calculates every passive worth taking next (adjacent nodes, notables
+    /// and keystones a few points away, mastery effects, ascendancy notables)
+    /// and every free swap of an allocated mastery.
+    pub fn passives(&self, xml: &str) -> Result<Passives, String> {
+        let (reply, result) = mpsc::channel();
+        self.jobs
+            .send(Job::Passives(xml.to_string(), reply))
+            .map_err(|_| "Path of Building is not running".to_string())?;
+        result
+            .recv()
+            .map_err(|_| "Path of Building stopped while checking passives".to_string())?
+    }
 }
 
 struct Api {
@@ -161,6 +182,7 @@ struct Api {
     load_build: Function,
     try_item: Function,
     analyse: Function,
+    passives: Function,
 }
 
 impl Api {
@@ -179,6 +201,16 @@ impl Api {
             .analyse
             .call(xml)
             .map_err(|e| format!("Path of Building could not analyse the build: {}", lua_message(&e)))?;
+        self.lua
+            .from_value(value)
+            .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
+    }
+
+    fn passives(&self, xml: &str) -> Result<Passives, String> {
+        let value: Value = self
+            .passives
+            .call(xml)
+            .map_err(|e| format!("Path of Building could not check passives: {}", lua_message(&e)))?;
         self.lua
             .from_value(value)
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
@@ -218,12 +250,13 @@ fn start_lua(pob_dir: &str) -> Result<Api, String> {
     let api: Table = lua
         .load(include_str!("../lua/engine.lua"))
         .set_name("@engine.lua")
-        .call((pob_dir, inflate_fn, deflate_fn))
+        .call((pob_dir, inflate_fn, deflate_fn, lua.array_metatable()))
         .map_err(fail)?;
     let load_build: Function = api.get("loadBuild").map_err(fail)?;
     let try_item: Function = api.get("tryItem").map_err(fail)?;
     let analyse: Function = api.get("analyse").map_err(fail)?;
-    Ok(Api { lua, load_build, try_item, analyse })
+    let passives: Function = api.get("passives").map_err(fail)?;
+    Ok(Api { lua, load_build, try_item, analyse, passives })
 }
 
 /// Error text without mlua's wrapping (PoB's own messages are what matter).
