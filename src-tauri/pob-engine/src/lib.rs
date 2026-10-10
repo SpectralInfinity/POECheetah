@@ -31,10 +31,35 @@ pub struct BuildStats {
     pub messages: Vec<String>,
 }
 
+/// A build calculated with an item in one slot.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SlotTrial {
+    /// PoB's slot label, e.g. "Ring 1".
+    pub slot: String,
+    /// Name of the item currently in the slot, if any.
+    pub replaces: Option<String>,
+    pub stats: BTreeMap<String, f64>,
+}
+
+/// An item tried in every slot it fits.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemTrial {
+    /// The item's name as PoB read it.
+    pub item: String,
+    /// The build's stats without the item.
+    pub before: BTreeMap<String, f64>,
+    /// One entry per slot the item fits; empty if it fits none.
+    #[serde(default)]
+    pub slots: Vec<SlotTrial>,
+}
+
 type Reply<T> = mpsc::Sender<Result<T, String>>;
 
 enum Job {
     LoadBuild(String, Reply<BuildStats>),
+    TryItem(String, String, Reply<ItemTrial>),
 }
 
 /// Handle to the engine thread. Cheap to share; requests run one at a time.
@@ -73,6 +98,9 @@ impl Engine {
                         Job::LoadBuild(xml, reply) => {
                             let _ = reply.send(api.load_build(&xml));
                         }
+                        Job::TryItem(xml, item, reply) => {
+                            let _ = reply.send(api.try_item(&xml, &item));
+                        }
                     }
                 }
             })
@@ -93,11 +121,24 @@ impl Engine {
             .recv()
             .map_err(|_| "Path of Building stopped while loading the build".to_string())?
     }
+
+    /// Calculates the build (PoB XML) with an item, given as the text copied
+    /// in game or from the trade site, in each slot it fits.
+    pub fn try_item(&self, xml: &str, item_text: &str) -> Result<ItemTrial, String> {
+        let (reply, result) = mpsc::channel();
+        self.jobs
+            .send(Job::TryItem(xml.to_string(), item_text.to_string(), reply))
+            .map_err(|_| "Path of Building is not running".to_string())?;
+        result
+            .recv()
+            .map_err(|_| "Path of Building stopped while trying the item".to_string())?
+    }
 }
 
 struct Api {
     lua: Lua,
     load_build: Function,
+    try_item: Function,
 }
 
 impl Api {
@@ -106,6 +147,16 @@ impl Api {
             .load_build
             .call(xml)
             .map_err(|e| format!("Path of Building could not load the build: {}", lua_message(&e)))?;
+        self.lua
+            .from_value(value)
+            .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
+    }
+
+    fn try_item(&self, xml: &str, item_text: &str) -> Result<ItemTrial, String> {
+        let value: Value = self
+            .try_item
+            .call((xml, item_text))
+            .map_err(|e| format!("Path of Building could not try the item: {}", lua_message(&e)))?;
         self.lua
             .from_value(value)
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
@@ -138,7 +189,8 @@ fn start_lua(pob_dir: &str) -> Result<Api, String> {
         .call((pob_dir, inflate_fn, deflate_fn))
         .map_err(fail)?;
     let load_build: Function = api.get("loadBuild").map_err(fail)?;
-    Ok(Api { lua, load_build })
+    let try_item: Function = api.get("tryItem").map_err(fail)?;
+    Ok(Api { lua, load_build, try_item })
 }
 
 /// Error text without mlua's wrapping (PoB's own messages are what matter).

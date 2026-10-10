@@ -227,3 +227,53 @@ button.danger {
 .changes .down {
   color: var(--error);
 }
+
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.findings li {
+  padding-left: 22px;
+  position: relative;
+}
+
+.findings li::before {
+  position: absolute;
+  left: 0;
+}
+
+.findings .warning::before {
+  content: "⚠";
+  color: var(--accent);
+}
+
+.findings .info::before {
+  content: "ℹ";
+  color: var(--muted);
+}
+
+.findings .fixed::before {
+  content: "✓";
+  color: var(--good);
+}
+
+.findings .fixed {
+  color: var(--good);
+}
+
+.trial {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trial h4 {
+  margin: 0;
+}

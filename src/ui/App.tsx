@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { APP_BUILD, APP_VERSION } from "../buildInfo";
 import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
-import { diffStats, formatStat, HEADLINE_STATS, pickHeadline, type Stats } from "../core/stats";
+import { checkBuild, diffFindings, type Finding } from "../core/health";
+import { diffStats, formatStat, HEADLINE_STATS, type Stats } from "../core/stats";
 import {
   memoryBuildStore,
   sqlBuildStore,
@@ -11,7 +12,7 @@ import {
   type SavedBuild,
 } from "../data/builds";
 import { isTauri, openDb } from "../data/db";
-import { calculate } from "./pob";
+import { calculate, tryItem, type ItemTrial } from "./pob";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -23,7 +24,7 @@ async function prepare(code: string): Promise<{ version: NewVersion; warning: st
   try {
     const result = await calculate(xml);
     return {
-      version: { code: clean, summary, mainSkill: result.mainSkill, stats: pickHeadline(result.stats) },
+      version: { code: clean, summary, mainSkill: result.mainSkill, stats: result.stats },
       warning: "",
     };
   } catch (e) {
@@ -112,7 +113,7 @@ export function App() {
   const recalculate = (v: BuildVersion) =>
     run("Calculating with Path of Building…", async () => {
       const result = await calculate(await decodeBuildCode(v.code));
-      await store!.setStats(v.id, result.mainSkill, pickHeadline(result.stats));
+      await store!.setStats(v.id, result.mainSkill, result.stats);
       await refresh(activeId);
     });
 
@@ -170,6 +171,7 @@ export function App() {
             disabled={busy !== ""}
             onUpdate={addVersion}
             onRecalculate={recalculate}
+            onTryItem={async (item) => tryItem(await decodeBuildCode(active.latest.code), item)}
             onRename={(name) => run("", async () => (await store!.rename(active.id, name), await refresh(active.id)))}
             onDelete={() => run("", async () => (await store!.remove(active.id), await refresh(null)))}
           />
@@ -221,6 +223,7 @@ function BuildView(props: {
   disabled: boolean;
   onUpdate: (code: string) => void;
   onRecalculate: (v: BuildVersion) => void;
+  onTryItem: (item: string) => Promise<ItemTrial>;
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
@@ -254,6 +257,15 @@ function BuildView(props: {
               <button type="button" className="link" onClick={() => setRenaming(true)}>
                 Rename
               </button>
+              <button
+                type="button"
+                className="link"
+                onClick={() => props.onRecalculate(latest)}
+                disabled={props.disabled}
+                title="Calculate again with the bundled Path of Building"
+              >
+                Recalculate
+              </button>
             </>
           )}
         </div>
@@ -272,6 +284,17 @@ function BuildView(props: {
           </p>
         )}
       </section>
+
+      {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
+
+      {latest.stats && (
+        <TryItem
+          level={latest.summary.level}
+          disabled={props.disabled}
+          onTry={props.onTryItem}
+          key={latest.id}
+        />
+      )}
 
       {latest.stats && previous?.stats && <Changes before={previous.stats} after={latest.stats} since={previous.addedAt} />}
 
@@ -347,6 +370,112 @@ function Changes({ before, after, since }: { before: Stats; after: Stats; since:
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+function FindingItem({ finding }: { finding: Finding }) {
+  return (
+    <li className={finding.severity}>
+      <strong>{finding.title}</strong>
+      <span className="muted small"> {finding.detail}</span>
+    </li>
+  );
+}
+
+function Health({ findings }: { findings: Finding[] }) {
+  return (
+    <section className="panel">
+      <h3>Health check</h3>
+      {findings.length === 0 ? (
+        <p className="muted">No problems found.</p>
+      ) : (
+        <ul className="findings">
+          {findings.map((f) => (
+            <FindingItem key={f.id} finding={f} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function TryItem(props: { level: number; disabled: boolean; onTry: (item: string) => Promise<ItemTrial> }) {
+  const [text, setText] = useState("");
+  const [trial, setTrial] = useState<ItemTrial | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    setBusy(true);
+    setError("");
+    setTrial(null);
+    try {
+      setTrial(await props.onTry(text));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const beforeFindings = trial ? checkBuild(trial.before, props.level) : [];
+  return (
+    <section className="panel">
+      <h3>Try an item</h3>
+      <p className="muted small">
+        Paste an item: hover it in game and press Ctrl+C, or copy it from the trade site.
+      </p>
+      <textarea
+        rows={5}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        spellCheck={false}
+        aria-label="Item text"
+      />
+      <div className="actions">
+        <button type="button" onClick={run} disabled={props.disabled || busy || !text.trim()}>
+          {busy ? "Calculating…" : "Try it"}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {trial && trial.slots.length === 0 && <p className="muted">{trial.item} doesn't fit any slot of this build.</p>}
+      {trial?.slots.map((slot) => {
+        const changes = diffStats(trial.before, slot.stats);
+        const { added, removed } = diffFindings(beforeFindings, checkBuild(slot.stats, props.level));
+        return (
+          <div key={slot.slot} className="trial">
+            <h4>
+              {slot.slot}
+              <span className="muted small"> {slot.replaces ? `replacing ${slot.replaces}` : "empty slot"}</span>
+            </h4>
+            {changes.length === 0 ? (
+              <p className="muted small">No headline stat changes.</p>
+            ) : (
+              <ul className="changes">
+                {changes.map(({ def, before: a, after: b }) => (
+                  <li key={def.key} className={b > a ? "up" : "down"}>
+                    {def.label}: {formatStat(def.kind, a)} → {formatStat(def.kind, b)}
+                    {def.kind === "number" && a !== 0 && ` (${b > a ? "+" : ""}${Math.round(((b - a) / Math.abs(a)) * 100)}%)`}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(added.length > 0 || removed.length > 0) && (
+              <ul className="findings">
+                {added.map((f) => (
+                  <FindingItem key={`+${f.id}`} finding={{ ...f, title: `New: ${f.title}` }} />
+                ))}
+                {removed.map((f) => (
+                  <li key={`-${f.id}`} className="fixed">
+                    <strong>Fixes: {f.title}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </section>
   );
 }

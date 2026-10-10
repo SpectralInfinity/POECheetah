@@ -1,5 +1,5 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
-//! `cargo run --release --example stats -- build.xml`
+//! `cargo run --release --example stats -- build.xml [--all | --item item.txt]`
 
 use std::path::PathBuf;
 
@@ -12,6 +12,26 @@ fn main() {
     let loaded = std::time::Instant::now();
     let build = engine.load_build(&xml).expect("load build");
     println!("main skill: {}", build.main_skill.as_deref().unwrap_or("-"));
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(i) = args.iter().position(|a| a == "--item") {
+        let item = std::fs::read_to_string(&args[i + 1]).expect("read item text");
+        let trial = engine.try_item(&xml, &item).expect("try item");
+        println!("item: {}", trial.item);
+        for slot in &trial.slots {
+            println!("{} (replacing {}):", slot.slot, slot.replaces.as_deref().unwrap_or("nothing"));
+            for key in ["CombinedDPS", "TotalEHP", "Life", "FireResist", "ColdMaximumHitTaken", "Str", "ReqStr", "Int", "ReqInt"] {
+                let (a, b) = (trial.before.get(key), slot.stats.get(key));
+                println!("  {key}: {a:?} -> {b:?}");
+            }
+        }
+        return;
+    }
+    if args.iter().any(|a| a == "--all") {
+        for (key, value) in &build.stats {
+            println!("{key}: {value}");
+        }
+        return;
+    }
     for key in [
         "CombinedDPS", "TotalDPS", "TotalEHP", "Life", "EnergyShield", "Mana", "Armour", "Evasion",
         "EffectiveBlockChance", "EffectiveSpellSuppressionChance", "FireResist", "ColdResist",

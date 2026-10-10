@@ -9,7 +9,9 @@
 - [x] 1. PoB engine (headless PoB inside the app) + saved builds.
       (Built 2026-10-10 as v0.2.0; tick once the installed app shows your
       build's stats matching PoB.)
-- [ ] 2. Build health check + try an item.
+- [x] 2. Build health check + try an item.
+      (Built 2026-10-10 as v0.3.0; tick once the warnings on your build make
+      sense and trying an item from the game works.)
 - [ ] 3. Honest DPS and boss check; support gem / pantheon / flask ranking.
 - [ ] 4. Passive advisor.
 - [ ] 5. Item upgrade advisor.
@@ -52,9 +54,22 @@
   Not done yet: why cold max hit = fire max hit on the reference build
   (inspect with the engine in session 2).
 
+- **2:** Health check = `src/core/health.ts` (rules + `THRESHOLDS`, tested
+  on numbers shaped like the reference build). Versions now store PoB's full
+  numeric output (≈650 stats), not just the headline ones; builds saved by
+  v0.2.0 need "Recalculate" for the health check. Try an item = engine
+  `tryItem` (PoB's own item-compare calculator, `GetMiscCalculator` with
+  `repSlotName`/`repItem`), every valid slot of the active weapon set, jewel
+  sockets included. Limitation: timeless/cluster jewels that change the tree
+  aren't re-planned (PoB's tooltip does that with private helpers). Dev tool:
+  `cargo run --release --example stats -- build.xml --item item.txt`.
+  On the reference build the check found: weak to chaos hits, 88% hit
+  chance, intelligence 91/98, small pool; cold/lightning "covered".
+
 ## Usage log (claude.ai → Settings → Usage)
 
 | Date | Session | Window before → after | Weekly before → after | Notes |
 |---|---|---|---|---|
 | 2026-10-10 | 0. Planning + foundations | ? → 31% | ~0% → 5% | Started in a Dancing Cabbage session; repo attached mid-session |
 | 2026-10-10 | 1. PoB engine + saved builds | 31% → ? | 5% → ? | Same conversation as session 0 |
+| 2026-10-10 | 2. Health check + try an item | ? → ? | ? → ? | Same conversation |

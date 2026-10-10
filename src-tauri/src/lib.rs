@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use pob_engine::{BuildStats, Engine};
+use pob_engine::{BuildStats, Engine, ItemTrial};
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -42,6 +42,15 @@ async fn pob_calculate(app: tauri::AppHandle, xml: String) -> Result<BuildStats,
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Calculates the build with an item (text copied in game or from the trade
+/// site) in each slot it fits.
+#[tauri::command]
+async fn pob_try_item(app: tauri::AppHandle, xml: String, item: String) -> Result<ItemTrial, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.try_item(&xml, &item))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -58,7 +67,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![pob_calculate])
+        .invoke_handler(tauri::generate_handler![pob_calculate, pob_try_item])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
 }

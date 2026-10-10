@@ -51,3 +51,41 @@ fn reports_xml_that_is_not_a_build() {
     let engine = Engine::start(&dir).expect("engine starts");
     assert!(engine.load_build("this is not build XML").is_err());
 }
+
+const RING: &str = "Item Class: Rings
+Rarity: Rare
+Test Loop
+Gold Ring
+--------
+Item Level: 80
+--------
++50 to maximum Life
++30% to Fire Resistance
+";
+
+#[test]
+fn tries_an_item_in_every_slot_it_fits() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let trial = engine.try_item(xml, RING).expect("item tried");
+
+    assert_eq!(trial.item, "Test Loop, Gold Ring");
+    let slots: Vec<_> = trial.slots.iter().map(|s| s.slot.as_str()).collect();
+    assert_eq!(slots, ["Ring 1", "Ring 2"]);
+    for slot in &trial.slots {
+        assert_eq!(slot.replaces, None);
+        assert!(slot.stats["Life"] > trial.before["Life"] + 49.0, "life goes up in {}", slot.slot);
+        assert_close(&slot.stats, "FireResist", -30.0);
+    }
+    assert_close(&trial.before, "Life", 1125.0);
+}
+
+#[test]
+fn reports_text_that_is_not_an_item() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let err = engine.try_item(xml, "hello").unwrap_err();
+    assert!(err.contains("couldn't read that item"), "{err}");
+}
