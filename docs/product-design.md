@@ -166,6 +166,25 @@ choices and flask mods ("try every option in PoB and rank").
 When the bundled PoB is updated for a patch, recalculate saved builds and
 show what the patch changed for each.
 
+### 3.11 Meta comparison with poe.ninja (added 2026-10-10)
+
+- Find comparable characters on poe.ninja's build pages: same main skill and
+  ascendancy (optionally a similar level).
+- Aggregate what they use: share of characters per unique item, keystone,
+  notable, support gem, cluster jewel, anoint, pantheon, flask.
+- Diff against your build: popular choices you don't have ("78% use X").
+- Rank those with PoB on **your** build (try an item §3.8, passive gains
+  §3.1): popularity alone isn't advice, so each suggestion shows its real gain
+  for you and is marked "popular and strong for you" or "popular, small gain
+  for you".
+- Top characters' PoB codes double as targets for §3.0 compare.
+- Caveats shown in the UI: ladder data leans to rich, late-league
+  characters; only public profiles are included.
+- Data access: poe.ninja has no official API. Use the JSON its own pages
+  load, cached per league for hours, low request rate, app identified in
+  User-Agent; check its terms when building. If that isn't allowed or
+  breaks, fall back to the user pasting poe.ninja character links/codes.
+
 ## 4. Data sources and game rules
 
 GGG's rule of thumb for third-party tools:
@@ -257,6 +276,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices | Per-slot buys ranked by gain per chaos, with trade links |
 | 6 | Item check from the game clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
 | 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
+| 7b | Meta comparison with poe.ninja (§3.11) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |

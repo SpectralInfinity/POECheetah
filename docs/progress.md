@@ -17,6 +17,7 @@
 - [ ] 5. Item upgrade advisor.
 - [ ] 6. Item check from the game clipboard.
 - [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
+- [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
 - [ ] 10. League mechanics (3.29 mercenaries).
