@@ -55,6 +55,14 @@ only explains them; it never invents them.
   ascendancy) and orders them by gain per cost, so the answer is "do these
   three things first" rather than "copy everything". Uses the same engine as
   §3.1 and §3.2.
+- **Build guides:** paste the guide's PoB link (guides publish one, often per
+  stage: league start, mid, end game). The app picks the stage closest to your
+  character, then (1) orders the gap as above, and (2) runs the advisors on the
+  guide build itself to find cheaper or stronger choices than the guide's,
+  which matters most after a patch the guide hasn't caught up with. The app
+  only reads PoB codes the user pastes; it doesn't scrape or copy guide sites.
+- **poe.ninja builds:** what top characters with the same skill use (share of
+  players per item, keystone, ascendancy), as extra candidates for §3.1–§3.2.
 
 ### 3.1 Passive advisor (first feature)
 
@@ -130,6 +138,18 @@ GGG's rule of thumb for third-party tools:
 | Official trade site API | Rare item prices | Respect the rate-limit headers it returns; send a User-Agent with contact info; check whether searches need a login |
 | GGG OAuth API | Characters, stash (§3.5) | **Requires registering the app with GGG, reviewed by hand. Apply well before session 6.** Desktop apps use the public-client flow with PKCE |
 | `Client.txt` | Runs (§3.4) | Local file, read only |
+
+**No passwords, no session cookies (decided 2026-10-10).** The app never asks
+for the GGG password or the `POESESSID` cookie: logging in on the user's behalf
+breaks GGG's terms and risks the account, and the cookie gives full account
+access. What works without them:
+
+- Trade search and prices: the trade site's search works logged out.
+- Characters: PoB-style import by account name when the profile's Characters
+  tab is public.
+- Stash value (§3.5) is the only part that needs the official OAuth login.
+  If GGG doesn't approve the app, §3.5 falls back to the run tracker plus
+  manual price checks, and the rest of the app is unaffected.
 
 Never commit account tokens, session IDs or a real `Client.txt`. Test
 fixtures are made-up builds and synthetic log lines.
