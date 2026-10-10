@@ -44,6 +44,8 @@ usage log: `docs/progress.md`.
   builds, sample stats, no PoB).
 - Game rules (design doc §4): read `Client.txt`, copied item text and official
   APIs only. Never read game memory, send input to the game, or OCR the screen.
+- Check each session's feature on the owner's real builds in
+  `docs/test-builds/` (PoB codes; see its README) before finishing.
 - Tests never call the network; poe.ninja / trade / PoB responses and log
   lines come from made-up fixtures in `src/core/__fixtures__/`.
 - Never commit account tokens, POESESSID, OAuth secrets, or a real `Client.txt`.

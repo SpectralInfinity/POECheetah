@@ -1,7 +1,9 @@
 -- Runs Path of Building headless inside POECheetah (design doc §5.1).
 -- Called once with the PoB folder (holding src/ and runtime/lua/) and the
--- zlib functions implemented in Rust; returns the engine's API table.
-local pobDir, inflate, deflate = ...
+-- zlib functions implemented in Rust, and the metatable that makes a table
+-- serialize as a JSON array even when empty; returns the engine's API table.
+local pobDir, inflate, deflate, arrayMeta = ...
+local function array(t) return setmetatable(t, arrayMeta) end
 local srcDir = pobDir .. "/src/"
 package.path = srcDir .. "?.lua;" .. pobDir .. "/runtime/lua/?.lua;" .. pobDir .. "/runtime/lua/?/init.lua;" .. package.path
 
@@ -322,6 +324,133 @@ function api.analyse(xmlText)
 	recalc()
 	if not ok then error(result, 0) end
 	return result
+end
+
+-- Passive advisor (design doc §3.1): every passive worth considering,
+-- calculated with the nodes on its path, as PoB's tree tooltip does.
+
+local PASSIVE_KEYS = { "CombinedDPS", "TotalEHP", "Life", "EnergyShield", "Mana", "Armour", "Evasion",
+	"EffectiveBlockChance", "EffectiveSpellBlockChance", "EffectiveSpellSuppressionChance",
+	"FireResist", "ColdResist", "LightningResist", "ChaosResist",
+	"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken",
+	"ChaosMaximumHitTaken" }
+-- Notables and keystones up to this many points away; other nodes only when adjacent.
+local MAX_NOTABLE_DISTANCE = 4
+
+local function nodeLines(node)
+	local lines = array({})
+	for _, line in ipairs(node.sd or {}) do lines[#lines + 1] = line end
+	return lines
+end
+
+--- A mastery effect as a node PoB can allocate in place of the mastery node.
+local function masteryEffectNode(node, effect)
+	local effectNode = { id = node.id, type = node.type, name = node.name, sd = {} }
+	for i, line in ipairs(effect.sd or {}) do effectNode.sd[i] = line end
+	build.spec.tree:ProcessStats(effectNode)
+	return effectNode
+end
+
+--- Mastery effects `node` may take: those not already chosen on another node of its kind.
+local function freeMasteryEffects(node)
+	local spec = build.spec
+	local effects = {}
+	for _, entry in ipairs(node.masteryEffects or {}) do
+		local takenBy = isValueInTable(spec.masterySelections, entry.effect)
+		local effect = spec.tree.masteryEffects[entry.effect]
+		if effect and (not takenBy or takenBy == node.id) then effects[#effects + 1] = effect end
+	end
+	return effects
+end
+
+--- Unallocated nodes on the way to `node`, as PoB paths them (the node included).
+local function pathTo(node)
+	local nodes, via = {}, array({})
+	for _, n in ipairs(node.path or {}) do
+		if not n.alloc then
+			nodes[n] = true
+			if n ~= node then via[#via + 1] = n.dn end
+		end
+	end
+	return nodes, via
+end
+
+--- Passives to allocate next, each with the stats after taking it and the
+--- nodes on its path; free swaps for allocated masteries; points spent.
+function api.passives(xmlText)
+	if xmlText ~= loadedXml then load(xmlText) end
+	local spec = build.spec
+	local granted = build.calcsTab.mainEnv.grantedPassives
+	local calcFunc, calcBase = build.calcsTab:GetMiscCalculator()
+	local used, ascUsed = spec:CountAllocNodes()
+	local candidates, swaps = array({}), array({})
+	local cache = {}
+
+	--- Calculates `entry` (a candidate) with `override` and adds it to `list`.
+	local function add(list, entry, override)
+		entry.via = entry.via or array({})
+		entry.stats = pick(calcFunc(override), PASSIVE_KEYS)
+		list[#list + 1] = entry
+	end
+
+	for _, node in pairs(spec.nodes) do
+		local dist = node.pathDist or 1000
+		local eligible = not node.alloc and node.modKey ~= "" and not granted[node.id] and node.path
+			and dist >= 1 and node.type ~= "ClassStart" and node.type ~= "AscendClassStart" and node.type ~= "Socket"
+		if eligible and node.ascendancyName then
+			-- Ascendancy notables for the character's own ascendancy, within its free points.
+			if node.type == "Notable" and node.ascendancyName == spec.curAscendClassName and dist <= 8 - ascUsed then
+				local nodes, via = pathTo(node)
+				add(candidates, { id = node.id, kind = "ascendancy", name = node.dn, lines = nodeLines(node), points = dist, via = via },
+					{ addNodes = nodes })
+			end
+		elseif eligible and node.type == "Mastery" then
+			if dist == 1 then
+				for _, effect in ipairs(freeMasteryEffects(node)) do
+					local effectNode = masteryEffectNode(node, effect)
+					add(candidates, { id = node.id, kind = "mastery", name = node.dn, lines = nodeLines(effectNode), points = 1 },
+						{ addNodes = { [effectNode] = true } })
+				end
+			end
+		elseif eligible and (dist == 1 or ((node.type == "Notable" or node.type == "Keystone") and dist <= MAX_NOTABLE_DISTANCE)) then
+			local kind = node.type == "Keystone" and "keystone" or node.type == "Notable" and "notable" or "small"
+			if dist == 1 then
+				-- Nodes with identical stats calculate identically.
+				if not cache[node.modKey] then
+					cache[node.modKey] = pick(calcFunc({ addNodes = { [node] = true } }), PASSIVE_KEYS)
+				end
+				candidates[#candidates + 1] = { id = node.id, kind = kind, name = node.dn, lines = nodeLines(node),
+					points = 1, via = array({}), stats = cache[node.modKey] }
+			else
+				local nodes, via = pathTo(node)
+				add(candidates, { id = node.id, kind = kind, name = node.dn, lines = nodeLines(node), points = dist, via = via },
+					{ addNodes = nodes })
+			end
+		elseif node.alloc and node.type == "Mastery" and not granted[node.id] then
+			-- Allocated mastery: every other effect it could take instead, for no points.
+			local current = spec.masterySelections[node.id]
+			for _, effect in ipairs(freeMasteryEffects(node)) do
+				if effect.id ~= current then
+					local effectNode = masteryEffectNode(node, effect)
+					add(swaps, { id = node.id, kind = "swap", name = node.dn, lines = nodeLines(effectNode), points = 0,
+						replaces = nodeLines(node) }, { addNodes = { [effectNode] = true }, removeNodes = { [node] = true } })
+				end
+			end
+		end
+	end
+
+	local function order(a, b) return a.id < b.id or (a.id == b.id and (a.lines[1] or "") < (b.lines[1] or "")) end
+	table.sort(candidates, order)
+	table.sort(swaps, order)
+	return {
+		before = pick(calcBase, PASSIVE_KEYS),
+		level = build.characterLevel,
+		pointsUsed = used,
+		extraPoints = build.calcsTab.mainOutput.ExtraPoints or 0,
+		ascendancyUsed = ascUsed,
+		candidates = candidates,
+		masterySwaps = swaps,
+	}
 end
 
 return api

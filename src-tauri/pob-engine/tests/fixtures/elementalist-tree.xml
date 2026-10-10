@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" targetVersion="3_0" className="Witch" ascendClassName="Elementalist" mainSocketGroup="1" viewMode="CALCS" bandit="None">
+	</Build>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="2" nodes="54447,57264,57226,33296,37569,21678,59650,1957,36774,36542,32210,9650,19374,739,17579,4397,8948,25222,6949,18866,21934,11420,7938,31875,27659,38176,27929,40637,55643,48362,4184,60554,1346,11128,1031,33779,34157,14021,60398,22062,37671,51517,127,11551,49651,15452,18663,29171,38900,2292,7503,32024,11659,27203,34661,44955,30225,27611,44723,16790,8135,19635,33755,12852,60388,17569,20142,54657,367,64401,55332,12379,39648,46340,13009,34098,60648,7388,15081,61320,21301,31703,27415,48778,12189,49047,4105,43000,22315,50472,41635,23950,7641,5296,12032,27709,50082,47085,30658,31103,38805,21075,65203,4432,44983,38148,58604,53493,8302,40075,50826,53279,21958,24362,44562,45366,16023,37114,54279,6052,12125" masteryEffects="{12125,64381}">
+		</Spec>
+	</Tree>
+	<Skills activeSkillSet="1">
+		<SkillSet id="1">
+			<Skill enabled="true" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Fireball" skillId="Fireball" gemId="Metadata/Items/Gems/SkillGemFireball" level="20" quality="20" enabled="true"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Items activeItemSet="1">
+		<ItemSet id="1"/>
+	</Items>
+	<Config/>
+</PathOfBuilding>

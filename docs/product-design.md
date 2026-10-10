@@ -67,7 +67,7 @@ only explains them; it never invents them.
 - **poe.ninja builds:** what top characters with the same skill use (share of
   players per item, keystone, ascendancy), as extra candidates for §3.1–§3.2.
 
-### 3.1 Passive advisor (first feature)
+### 3.1 Passive advisor (built in session 4)
 
 - Candidates: every unallocated node adjacent to the tree (1 point), plus
   notables and keystones within 2–4 points (path cost = points on the path).
@@ -76,6 +76,13 @@ only explains them; it never invents them.
   small tree view later.
 - Goal switch: Damage / Defence / Balanced. Balanced must never recommend
   something that drops resists below cap or life sharply.
+- Built in session 4: engine `passives` uses PoB's own paths (`node.path`)
+  and item-compare calculator (`addNodes`/`removeNodes`), as its tree tooltip
+  does. Damage = Combined DPS, Defence = effective HP, Balanced = their average,
+  minus anything that lowers a resist or costs over 5% life, EHP or DPS (shown
+  as "Costs" under the other goals). Also lists free swaps for allocated
+  masteries, and ascendancy notables within the free ascendancy points (ranked
+  separately: they're a different kind of point).
 
 ### 3.2 Item upgrade advisor
 
@@ -87,6 +94,18 @@ only explains them; it never invents them.
   (rares, sampled sparingly within its rate limits).
 - Output: "Ring: +25% DPS for ~40c" ranked by gain per chaos, with a link
   that opens the matching trade search.
+- Also price the support gems §3.9 suggests (gain per chaos), at the level
+  players actually buy. A gem with no poe.ninja listing in the current
+  league is left out or marked "not obtainable": most Awakened supports no
+  longer drop (owner's finding, 2026-10-10: only Awakened Empower, Enlighten
+  and Enhance still do), yet PoB's data still has them all and the ranking
+  suggested Awakened Greater Multiple Projectiles. Use market data, not a
+  hard-coded list, so the next removals are caught too.
+- **Bossing goal** (owner's request, 2026-10-10): a fourth goal next to
+  Damage / Defence / Balanced. Same item comparisons, calculated with
+  `enemyIsBoss = "Uber"` and situational assumptions cleared (the §3.9
+  boss check's settings, `withConfig` in the engine). Add it to the passive
+  advisor (§3.1) too.
 
 ### 3.3 Item check: "is this an upgrade for my build?"
 
@@ -122,6 +141,14 @@ only explains them; it never invents them.
 - Researched when the session starts, not from memory: mechanics change
   every league. Simulated in PoB if PoB models them; otherwise a short
   curated guide that ranks options for the build's needs.
+- Checked 2026-10-10 (PoB v2.67.2): PoB has all 28 mercenary mod lines
+  (Luminary ascendancy, uniques) but parses none of them, and has no
+  mercenary actor: no mercenary stats, gear or buffs on the player. Its
+  Party tab (other players' auras, curses, link buffs) might stand in for a
+  mercenary's effect on the player; not checked. Session 10 starts by
+  checking whether a newer PoB release models mercenaries; if not, the
+  recommendation comes from researched rules, not PoB numbers. Test build:
+  `docs/test-builds/luminary-support-97.txt`.
 
 ### 3.7 Build health check (added 2026-10-10, session 2)
 
@@ -273,7 +300,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 2 | Build health check (§3.7) + try an item (§3.8) | Your build's warnings make sense; pasting an item shows its stat changes and new warnings |
 | 3 | Honest DPS and boss check; rank support gems, pantheon, flasks (§3.9) | Configured vs conservative vs boss DPS side by side; best support swap found |
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
-| 5 | Item upgrade advisor (§3.2) with poe.ninja prices | Per-slot buys ranked by gain per chaos, with trade links |
+| 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
 | 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
 | 7b | Meta comparison with poe.ninja (§3.11) | For your build: popular items/passives you lack, ranked by real gain |

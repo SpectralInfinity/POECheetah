@@ -3,6 +3,7 @@ import { APP_BUILD, APP_VERSION } from "../buildInfo";
 import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
 import { change, pantheonAdvice, supportAdvice, type Analysis } from "../core/analysis";
 import { checkBuild, diffFindings, type Finding } from "../core/health";
+import { ASCENDANCY_POINTS, GOALS, planPassives, type Goal, type PassiveAdvice, type PassiveResult } from "../core/passives";
 import { diffStats, formatStat, HEADLINE_STATS, type Stats } from "../core/stats";
 import {
   memoryBuildStore,
@@ -13,7 +14,7 @@ import {
   type SavedBuild,
 } from "../data/builds";
 import { isTauri, openDb } from "../data/db";
-import { analyse, calculate, tryItem, type ItemTrial } from "./pob";
+import { analyse, calculate, passives, tryItem, type ItemTrial } from "./pob";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -174,6 +175,7 @@ export function App() {
             onRecalculate={recalculate}
             onTryItem={async (item) => tryItem(await decodeBuildCode(active.latest.code), item)}
             onAnalyse={async () => analyse(await decodeBuildCode(active.latest.code))}
+            onPassives={async () => passives(await decodeBuildCode(active.latest.code))}
             onRename={(name) => run("", async () => (await store!.rename(active.id, name), await refresh(active.id)))}
             onDelete={() => run("", async () => (await store!.remove(active.id), await refresh(null)))}
           />
@@ -227,6 +229,7 @@ function BuildView(props: {
   onRecalculate: (v: BuildVersion) => void;
   onTryItem: (item: string) => Promise<ItemTrial>;
   onAnalyse: () => Promise<Analysis>;
+  onPassives: () => Promise<PassiveResult>;
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
@@ -289,6 +292,10 @@ function BuildView(props: {
       </section>
 
       {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
+
+      {latest.stats && (
+        <NextPassives key={`p${latest.id}`} mainSkill={latest.mainSkill} disabled={props.disabled} onRun={props.onPassives} />
+      )}
 
       {latest.stats && <DeepAnalysis key={`a${latest.id}`} disabled={props.disabled} onRun={props.onAnalyse} />}
 
@@ -611,5 +618,159 @@ function Pantheon(props: { title: string; group: Analysis["pantheonMajor"]; ehp:
     <p className="small">
       <strong>{props.title}:</strong> {text}
     </p>
+  );
+}
+
+const KIND_LABEL: Record<PassiveAdvice["kind"], string> = {
+  small: "",
+  notable: "notable",
+  keystone: "keystone",
+  mastery: "mastery",
+  ascendancy: "ascendancy",
+  swap: "mastery",
+};
+
+const signed = (x: number) => `${x >= 0.0005 ? "+" : x <= -0.0005 ? "−" : ""}${Math.abs(Math.round(x * 1000) / 10)}%`;
+
+/** "+3.5% DPS per point · +7% DPS, +0.4% effective HP" (per point only when the path costs more than one). */
+function gainText(p: PassiveAdvice, goal: Goal): string {
+  const totals = `${signed(p.dps)} DPS, ${signed(p.ehp)} effective HP`;
+  if (p.points <= 1) return totals;
+  const perPoint = goal === "damage" ? "DPS per point" : goal === "defence" ? "effective HP per point" : "per point (DPS and EHP averaged)";
+  return `${signed(p.score)} ${perPoint} · ${totals}`;
+}
+
+function PassiveItem({ p, goal, unit = "point" }: { p: PassiveAdvice; goal: Goal; unit?: string }) {
+  return (
+    <li className={p.drawbacks.length ? "passive warn" : "passive"}>
+      <div>
+        <strong>{p.name}</strong>
+        {KIND_LABEL[p.kind] && <span className="muted small"> {KIND_LABEL[p.kind]}</span>}
+        {p.count > 1 && (
+          <span className="muted small">
+            {" "}
+            · {p.kind === "swap" ? `fits ${p.count} of your masteries` : `${p.count} like this within reach`}
+          </span>
+        )}
+        {p.points > 0 && (
+          <span className="muted small">
+            {" "}
+            · {p.points} {unit}
+            {p.points > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      <div className="small gain">{gainText(p, goal)}</div>
+      {p.replaces && <div className="muted small">Instead of: {p.replaces.join("; ")}</div>}
+      <div className="muted small">{p.lines.join("; ")}</div>
+      {p.via.length > 0 && <div className="muted small">Path through: {p.via.join(" → ")}</div>}
+      {p.drawbacks.length > 0 && <div className="small drawback">Costs: {p.drawbacks.join(", ")}</div>}
+    </li>
+  );
+}
+
+function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRun: () => Promise<PassiveResult> }) {
+  const [result, setResult] = useState<PassiveResult | null>(null);
+  const [goal, setGoal] = useState<Goal>("balanced");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    setBusy(true);
+    setError("");
+    try {
+      setResult(await props.onRun());
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const plan = result && planPassives(result, goal);
+  const ascFree = plan ? ASCENDANCY_POINTS - plan.ascendancyUsed : 0;
+  return (
+    <section className="panel">
+      <h3>Next passives</h3>
+      <div className="actions goal">
+        {GOALS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={g.id === goal ? "" : "secondary"}
+            onClick={() => setGoal(g.id)}
+            aria-pressed={g.id === goal}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      {!plan && (
+        <>
+          <p className="muted small">
+            Calculates every passive next to your tree, and every notable and keystone up to 4 points away (the path
+            included), with Path of Building. Balanced never suggests a passive that lowers a resistance or costs
+            much life. Takes up to a minute on a big build.
+          </p>
+          <div className="actions">
+            <button type="button" onClick={run} disabled={props.disabled || busy}>
+              {busy ? "Calculating passives…" : "Find passives"}
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p className="error">{error}</p>}
+      {plan && (
+        <>
+          <p className="muted small">
+            {plan.used} of {plan.available} points spent (level {result.level}, every quest done)
+            {plan.available > plan.used ? ` · ${plan.available - plan.used} to spend` : ""}.
+          </p>
+          {plan.noDamage && goal !== "defence" && (
+            <p className="small">
+              Your main skill{props.mainSkill ? ` (${props.mainSkill})` : ""} deals no damage in Path of Building, so
+              passives are ranked by defence only. To rank damage, choose your damage skill as the main skill in Path of
+              Building and paste the code again.
+            </p>
+          )}
+          {plan.passives.length === 0 ? (
+            <p className="small">No passive within reach improves this goal{goal === "balanced" ? " without a cost" : ""}.</p>
+          ) : (
+            <ol className="passives">
+              {plan.passives.map((p) => (
+                <PassiveItem key={`${p.id}`} p={p} goal={goal} />
+              ))}
+            </ol>
+          )}
+          {plan.swaps.length > 0 && (
+            <>
+              <h4>Better mastery effects (no points, only a respec)</h4>
+              <ul className="passives">
+                {plan.swaps.map((p) => (
+                  <PassiveItem key={`s${p.id}`} p={p} goal={goal} />
+                ))}
+              </ul>
+            </>
+          )}
+          {ascFree > 0 && plan.ascendancy.length > 0 && (
+            <>
+              <h4>
+                Ascendancy ({plan.ascendancyUsed} of {ASCENDANCY_POINTS} points used; for your next labyrinth)
+              </h4>
+              <ul className="passives">
+                {plan.ascendancy.map((p) => (
+                  <PassiveItem key={`a${p.id}`} p={p} goal={goal} unit="ascendancy point" />
+                ))}
+              </ul>
+            </>
+          )}
+          <div className="actions">
+            <button type="button" className="link" onClick={run} disabled={props.disabled || busy}>
+              {busy ? "Calculating…" : "Calculate again"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
