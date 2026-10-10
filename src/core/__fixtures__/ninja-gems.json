@@ -1,0 +1,9 @@
+{"lines":[
+ {"id":1,"name":"Unbound Ailments Support","gemLevel":20,"gemQuality":20,"corrupted":false,"chaosValue":12,"listingCount":80,"variant":"20/20"},
+ {"id":2,"name":"Unbound Ailments Support","gemLevel":20,"gemQuality":0,"corrupted":false,"chaosValue":4,"listingCount":40,"variant":"20"},
+ {"id":3,"name":"Unbound Ailments Support","gemLevel":21,"gemQuality":20,"corrupted":true,"chaosValue":2,"listingCount":30,"variant":"21/20c"},
+ {"id":4,"name":"Awakened Deadly Ailments Support","gemLevel":1,"gemQuality":0,"corrupted":false,"chaosValue":30,"listingCount":12,"variant":"1"},
+ {"id":5,"name":"Awakened Empower Support","gemLevel":4,"gemQuality":0,"corrupted":false,"chaosValue":900,"listingCount":3,"variant":"4"},
+ {"id":6,"name":"Awakened Greater Multiple Projectiles Support","gemLevel":5,"gemQuality":20,"corrupted":true,"chaosValue":50,"listingCount":0,"variant":"5/20c"},
+ {"id":7,"broken":true}
+]}

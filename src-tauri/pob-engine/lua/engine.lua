@@ -248,7 +248,7 @@ local function rankSupports(maxCandidates)
 			gem.quality = 0
 			recalc()
 			local out = build.calcsTab.mainOutput
-			candidates[#candidates + 1] = { name = gemData.name, stats = pick(out, SCORE_KEYS) }
+			candidates[#candidates + 1] = { name = gemData.name, level = gem.level, stats = pick(out, SCORE_KEYS) }
 		end
 	end
 	gem.gemId, gem.skillId, gem.level, gem.quality = saved.gemId, saved.skillId, saved.level, saved.quality
@@ -276,25 +276,60 @@ local function rankPantheon(original, var)
 	return { current = original[var] or "None", options = results }
 end
 
---- Honest DPS, boss check, pantheon and support gem ranking for build XML.
-function api.analyse(xmlText)
-	if xmlText ~= loadedXml then load(xmlText) end
+--- The situational assumptions set in the build (`original` config input):
+--- the changes that clear them and their labels.
+local function conservativeChanges(original)
+	local cleared, changes = {}, {}
+	for _, opt in ipairs(assumptionOptions()) do
+		local value = original[opt.var]
+		if opt.type ~= "list" and value ~= nil and value ~= false and value ~= 0 and value ~= ""
+			and value ~= opt.defaultState then
+			changes[opt.var] = false
+			cleared[#cleared + 1] = opt.type == "check" and optionLabel(opt)
+				or (optionLabel(opt) .. ": " .. tostring(value))
+		end
+	end
+	return changes, cleared
+end
+
+--- Config changes for a calculation mode: "configured" (the build as set),
+--- "conservative" (situational assumptions cleared) or "boss" (cleared, and
+--- the enemy an uber pinnacle boss).
+local function modeChanges(original, mode)
+	if mode == "conservative" or mode == "boss" then
+		local changes = conservativeChanges(original)
+		if mode == "boss" then changes.enemyIsBoss = "Uber" end
+		return changes
+	elseif mode == nil or mode == "configured" then
+		return {}
+	end
+	error("Unknown calculation mode: " .. tostring(mode), 0)
+end
+
+--- Runs `fn` with the loaded build's config switched to `mode`, then restores
+--- the build exactly, even when `fn` fails.
+local function inMode(mode, fn)
 	local input = build.configTab.input
 	local original = copyTable(input)
 	local ok, result = pcall(function()
-		local configured = numericStats(build.calcsTab.mainOutput)
+		local changes = modeChanges(original, mode)
+		if next(changes) then withConfig(original, changes, function() end) end
+		return fn(original)
+	end)
+	wipeTable(input)
+	for k, v in pairs(original) do input[k] = v end
+	recalc()
+	if not ok then error(result, 0) end
+	return result
+end
 
-		-- Conservative: clear every situational assumption that is set.
-		local cleared, changes = {}, {}
-		for _, opt in ipairs(assumptionOptions()) do
-			local value = original[opt.var]
-			if opt.type ~= "list" and value ~= nil and value ~= false and value ~= 0 and value ~= ""
-				and value ~= opt.defaultState then
-				changes[opt.var] = false
-				cleared[#cleared + 1] = opt.type == "check" and optionLabel(opt)
-					or (optionLabel(opt) .. ": " .. (opt.type == "list" and listLabel(opt, value) or tostring(value)))
-			end
-		end
+--- Honest DPS, boss check, pantheon and support gem ranking for build XML.
+--- Supports are ranked in `mode` (see `modeChanges`).
+function api.analyse(xmlText, mode)
+	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode("configured", function(original)
+		local configured = numericStats(build.calcsTab.mainOutput)
+		local changes, cleared = conservativeChanges(original)
 		local conservative = withConfig(original, changes, numericStats)
 
 		local bossOpt = findOption("enemyIsBoss")
@@ -304,8 +339,8 @@ function api.analyse(xmlText)
 		local major = rankPantheon(original, "pantheonMajorGod")
 		local minor = rankPantheon(original, "pantheonMinorGod")
 
-		withConfig(original, {}, function() end)
-		local supports = rankSupports(8)
+		withConfig(original, modeChanges(original, mode), function() end)
+		local supports = rankSupports(40)
 
 		return {
 			configured = configured,
@@ -316,15 +351,12 @@ function api.analyse(xmlText)
 			pantheonMajor = major,
 			pantheonMinor = minor,
 			supports = supports,
+			mode = mode or "configured",
 		}
 	end)
-	-- Always leave the build exactly as loaded.
-	wipeTable(input)
-	for k, v in pairs(original) do input[k] = v end
-	recalc()
-	if not ok then error(result, 0) end
-	return result
 end
+
+local passivesNow
 
 -- Passive advisor (design doc §3.1): every passive worth considering,
 -- calculated with the nodes on its path, as PoB's tree tooltip does.
@@ -377,8 +409,12 @@ end
 
 --- Passives to allocate next, each with the stats after taking it and the
 --- nodes on its path; free swaps for allocated masteries; points spent.
-function api.passives(xmlText)
+function api.passives(xmlText, mode)
 	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode(mode, passivesNow)
+end
+
+passivesNow = function()
 	local spec = build.spec
 	local granted = build.calcsTab.mainEnv.grantedPassives
 	local calcFunc, calcBase = build.calcsTab:GetMiscCalculator()
@@ -451,6 +487,211 @@ function api.passives(xmlText)
 		candidates = candidates,
 		masterySwaps = swaps,
 	}
+end
+
+-- Item upgrade advisor (design doc §3.2): unique items tried in every slot
+-- they fit, flask mods ranked, and PoB's weighted rare search per slot.
+
+local ITEM_KEYS = { "Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt" }
+for _, key in ipairs(PASSIVE_KEYS) do ITEM_KEYS[#ITEM_KEYS + 1] = key end
+
+--- Equipment slots of the active weapon set that hold or can hold an item.
+local function activeSlots()
+	local itemsTab = build.itemsTab
+	local weaponSet = itemsTab.activeItemSet.useSecondWeaponSet and 2 or 1
+	local slots = {}
+	for slotName, slot in pairs(itemsTab.slots) do
+		if not slot.inactive and (not slot.weaponSet or slot.weaponSet == weaponSet) and slot.shown() then
+			slots[slotName] = slot
+		end
+	end
+	return slots
+end
+
+local function linkCount(item)
+	local best, run, group = 0, 0, nil
+	for _, socket in ipairs(item and item.sockets or {}) do
+		if socket.group == group then run = run + 1 else run, group = 1, socket.group end
+		if run > best then best = run end
+	end
+	return best
+end
+
+--- PoB's unique items by title (a title can have several bases, e.g. Precursor's Emblem).
+local uniquesByTitle
+local function loadUniques()
+	local guard = 0
+	while main.uniqueDB.loading and guard < 10000 do
+		runCallback("OnFrame")
+		guard = guard + 1
+	end
+	if not uniquesByTitle then
+		uniquesByTitle = {}
+		for _, item in pairs(main.uniqueDB.list) do
+			local title = item.title or item.name
+			uniquesByTitle[title] = uniquesByTitle[title] or {}
+			table.insert(uniquesByTitle[title], item)
+		end
+	end
+	return uniquesByTitle
+end
+
+--- Cluster and timeless jewels change the tree; PoB's calculator alone can't place them.
+local function triable(item)
+	local base = item.baseName or ""
+	return not item.clusterJewel and not base:match("Cluster Jewel") and not base:match("Timeless Jewel")
+end
+
+--- For each flask slot holding a non-unique flask: the build with the same
+--- base and no mods (`plain`), and with each prefix and suffix alone (the best
+--- tier the character's level allows, best roll).
+local function rankFlasks(calcFunc, slots)
+	local results = array({})
+	local level = build.characterLevel
+	for slotName, slot in pairs(slots) do
+		local current = build.itemsTab.items[slot.selItemId]
+		if slotName:match("^Flask") and current and current.type == "Flask" and current.rarity ~= "UNIQUE" and current.base then
+			local function flask(prefix, suffix)
+				local raw = "Rarity: MAGIC\n" .. current.baseName .. "\nCrafted: true\n"
+					.. "Prefix: {range:1}" .. (prefix or "None") .. "\nSuffix: {range:1}" .. (suffix or "None") .. "\n"
+					.. "Quality: " .. tostring(current.quality or 0)
+				local item = new("Item", raw)
+				item:Craft()
+				return item
+			end
+			local plain = flask()
+			-- Best tier per mod group the character's level allows.
+			local best = {}
+			for modId, mod in pairs(plain.affixes or {}) do
+				if (mod.type == "Prefix" or mod.type == "Suffix") and (mod.level or 0) <= level
+					and plain:GetModSpawnWeight(mod) > 0 then
+					local key = mod.type .. ":" .. (mod.group or modId)
+					if not best[key] or (best[key].mod.level or 0) < (mod.level or 0) then
+						best[key] = { modId = modId, mod = mod }
+					end
+				end
+			end
+			local options = { Prefix = {}, Suffix = {} }
+			for _, entry in pairs(best) do
+				local item = entry.mod.type == "Prefix" and flask(entry.modId, nil) or flask(nil, entry.modId)
+				local list = options[entry.mod.type]
+				list[#list + 1] = { modId = entry.modId, lines = array({ unpack(entry.mod) }),
+					stats = pick(calcFunc({ repSlotName = slotName, repItem = item }), SCORE_KEYS) }
+			end
+			local plainStats = pick(calcFunc({ repSlotName = slotName, repItem = plain }), SCORE_KEYS)
+			local function sorted(list)
+				table.sort(list, function(a, b) return a.modId < b.modId end)
+				return array(list)
+			end
+			results[#results + 1] = {
+				slot = slot.label or slotName,
+				slotName = slotName,
+				flask = current.name,
+				active = slot.active and true or false,
+				plain = plainStats,
+				prefixes = sorted(options.Prefix),
+				suffixes = sorted(options.Suffix),
+			}
+		end
+	end
+	table.sort(results, function(a, b) return a.slotName < b.slotName end)
+	return results
+end
+
+--- Tries each named unique (PoB's unique database; names as the market lists
+--- them) in every slot it fits, and ranks flask mods, in `mode`.
+function api.upgrades(xmlText, mode, uniqueNames)
+	if xmlText ~= loadedXml then load(xmlText) end
+	local uniques = loadUniques()
+	return inMode(mode, function()
+		local itemsTab = build.itemsTab
+		itemsTab:UpdateSockets()
+		local calcFunc, calcBase = build.calcsTab:GetMiscCalculator()
+		local slots = activeSlots()
+		local current = array({})
+		for slotName, slot in pairs(slots) do
+			local item = itemsTab.items[slot.selItemId]
+			current[#current + 1] = { slot = slot.label or slotName, slotName = slotName,
+				item = item and item.name or nil, rarity = item and item.rarity or nil, links = linkCount(item) }
+		end
+		table.sort(current, function(a, b) return a.slotName < b.slotName end)
+
+		local trials, missing = array({}), array({})
+		local seen = {}
+		if uniqueNames and uniqueNames[1] == "*" then
+			-- Every unique PoB knows (dev tool: `--upgrades` in examples/stats.rs).
+			uniqueNames = {}
+			for name in pairs(uniques) do uniqueNames[#uniqueNames + 1] = name end
+			table.sort(uniqueNames)
+		end
+		for _, name in ipairs(uniqueNames or {}) do
+			if not uniques[name] then missing[#missing + 1] = name end
+			for _, item in ipairs(not seen[name] and uniques[name] or {}) do
+				seen[name] = true
+				for slotName, slot in pairs(triable(item) and slots or {}) do
+					local inSlot = itemsTab.items[slot.selItemId]
+					-- A cluster or timeless jewel in the socket shapes the tree around it; keep it.
+					if itemsTab:IsItemValidForSlot(item, slotName) and not (inSlot and inSlot.name == item.name)
+						and not (inSlot and not triable(inSlot)) then
+						trials[#trials + 1] = {
+							name = item.title or item.name,
+							base = item.baseName,
+							slot = slot.label or slotName,
+							slotName = slotName,
+							replaces = inSlot and inSlot.name or nil,
+							level = item.requirements and item.requirements.level or 0,
+							stats = pick(calcFunc({ repSlotName = slotName, repItem = item }), ITEM_KEYS),
+						}
+					end
+				end
+			end
+		end
+		table.sort(trials, function(a, b) return a.name < b.name or (a.name == b.name and a.slotName < b.slotName) end)
+		return {
+			mode = mode or "configured",
+			level = build.characterLevel,
+			before = pick(calcBase, ITEM_KEYS),
+			slots = current,
+			uniques = trials,
+			missing = missing,
+			flasks = rankFlasks(calcFunc, slots),
+		}
+	end)
+end
+
+--- PoB's weighted trade search for a rare in `slotName` (its "Trader"): every
+--- mod weighted by what it adds to `weights` ({ stat, weightMult } over PoB's
+--- output), in `mode`. Returns the trade site query as JSON.
+function api.rareSearch(xmlText, mode, slotName, weights)
+	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode(mode, function()
+		local slot = build.itemsTab.slots[slotName]
+		if not slot then error("No slot called " .. tostring(slotName), 0) end
+		local generator = new("TradeQueryGenerator", { itemsTab = build.itemsTab })
+		generator.tradeTypeIndex = 2 -- instant buyout and in person
+		local query, failure
+		generator.requesterCallback = function(_, json, errMsg) query, failure = json, errMsg end
+		local current = build.itemsTab.items[slot.selItemId]
+		local statWeights = {}
+		for i, w in ipairs(weights) do statWeights[i] = { stat = w.stat, weightMult = w.weightMult } end
+		generator:StartQuery(slot, {
+			statWeights = statWeights,
+			influence1 = 1,
+			influence2 = 1,
+			jewelType = current and current.base and current.base.subType == "Abyss" and "Abyss" or "Base",
+			includeCorrupted = false,
+			includeMirrored = false,
+			maxLevel = build.characterLevel,
+		})
+		local guard = 0
+		while generator.calcContext.co and guard < 100000 do
+			generator:OnFrame()
+			guard = guard + 1
+		end
+		if failure then error(failure, 0) end
+		if not query then error("Path of Building could not make a trade search for " .. slotName, 0) end
+		return { slot = slot.label or slotName, query = query }
+	end)
 end
 
 return api

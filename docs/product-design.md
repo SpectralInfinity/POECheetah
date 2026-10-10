@@ -84,7 +84,16 @@ only explains them; it never invents them.
   masteries, and ascendancy notables within the free ascendancy points (ranked
   separately: they're a different kind of point).
 
-### 3.2 Item upgrade advisor
+### 3.2 Item upgrade advisor (built in session 5)
+
+Built as: every unique poe.ninja prices in the chosen league, tried by PoB in
+each slot it fits (cluster and timeless jewels skipped: they reshape the
+tree), ranked by goal gain per chaos, with a trade link each; magic flask
+mods ranked per flask (best tier, best roll, each mod alone); rares via PoB's
+own weighted trade search (`TradeQueryGenerator`), opened on the trade site.
+Rare prices aren't sampled from the trade API yet: the search link shows
+them. Goal, the "count my situational assumptions" switch (off by default)
+and the league are shared by the passive, item and gem advice.
 
 - Per slot, candidates from: popular uniques for the build's skill, and
   weighted rare searches. PoB already contains a trade-query generator with
@@ -226,8 +235,8 @@ GGG's rule of thumb for third-party tools:
 |---|---|---|
 | PoB code / XML | The build | No login. Code = zlib-compressed XML in URL-safe base64 (`src/core/buildCode.ts`) |
 | Path of Building Community | All calculations | Open source; check its licence allows bundling (session 1) |
-| poe.ninja | Prices (currency, uniques, fragments), popular builds | No official API: cache (≥ 15 min), low request rate, identify the app in User-Agent |
-| Official trade site API | Rare item prices | Respect the rate-limit headers it returns; send a User-Agent with contact info; check whether searches need a login |
+| poe.ninja | Prices (currency, uniques, gems), leagues, popular builds; API at `https://poe.ninja/poe1/api/` | No official API: cache (≥ 15 min), low request rate, identify the app in User-Agent |
+| Official trade site API | Rare item prices | Reading search results needs GGG's OAuth login with the `account:trade` scope (as PoB's trader does, 2026); search links work logged out. The league list also refuses logged-out requests |
 | GGG OAuth API | Characters, stash (§3.5) | **Requires registering the app with GGG, reviewed by hand. Apply well before session 6.** Desktop apps use the public-client flow with PKCE |
 | `Client.txt` | Runs (§3.4) | Local file, read only |
 

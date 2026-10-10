@@ -18,7 +18,9 @@
 - [x] 4. Passive advisor.
       (Built 2026-10-10 as v0.5.0; tick once the top 10 on your build are
       passives you'd take.)
-- [ ] 5. Item upgrade advisor.
+- [x] 5. Item upgrade advisor; Bossing goal; priced support gems; flasks.
+      (Built 2026-10-10 as v0.6.0; tick once the top buys on your build
+      make sense and the poe.ninja prices load in the installed app.)
 - [ ] 6. Item check from the game clipboard.
 - [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
 - [ ] 7b. Meta comparison with poe.ninja.
@@ -107,6 +109,41 @@
   Not done: minion DPS (Combined DPS only, like session 3), the small tree
   view with the path drawn, cluster jewel notables not yet socketed.
 
+- **5:** Calculation modes in the engine (`inMode` in `engine.lua`):
+  `configured`, `conservative` (session 3's assumption clearing) and `boss`
+  (cleared + `enemyIsBoss = "Uber"`); passives, support ranking and item
+  upgrades take one. Goals now Damage / Defence / Balanced / Bossing
+  (`src/core/goals.ts`); Bossing = boss mode, DPS and EHP averaged, no
+  drawbacks. "Count my situational assumptions" is off by default, so the
+  Reliquarian's "+12% DoT multi for poison on Bleeding Enemies" no longer
+  ranks (it did at +6.4%). Item upgrades: engine `upgrades` tries each named
+  unique (PoB's unique DB by title) in every active slot; ~36 s on the
+  Reliquarian (2,484 trials, every unique PoB knows), ~48 s on the Luminary.
+  Flask mods: each prefix/suffix alone on the same base, against the base
+  without mods. Rares: engine `rareSearch` runs PoB's `TradeQueryGenerator`
+  (~3 s per slot) and the app opens the trade site with the weighted query.
+  Market data: Rust `market_get` (allowlist: poe.ninja API, trade site's
+  `api/trade/data/`), cached 30 min; league from the trade site's league
+  list. Gem prices: uncorrupted at the calculated level, else level 1 ("level
+  it"); no listing → left out as not sold (catches Awakened GMP). PoB gem
+  names lack " Support"; prices and trade links add it.
+  Checked against live poe.ninja (Allflame, once the environment allowed
+  it): its API moved to `https://poe.ninja/poe1/api/` (old `/api/data/`
+  answers "not found"); fields as expected. Leagues now come from poe.ninja's
+  `data/index-state`: the trade site's league list answers 403 without a
+  login. Foulborn uniques (556 listings) aren't in PoB's list and are skipped.
+  Only Awakened Empower/Enhance/Enlighten are listed, so the rule catches the
+  rest (Reliquarian: Awakened Deadly Ailments, GMP, Vicious Projectiles left
+  out; Cruelty +3% for ~37c suggested). Best buys keep two per kind of slot
+  and drop anything losing > 30% DPS or EHP (any main-hand weapon kills
+  Poisonous Concoction: DPS −100%).
+  On the Reliquarian (bossing) only flask uniques pass without drawbacks
+  (most items lower max fire res or EHP > 5%); Damage shows Qotra's
+  Regulator +27% DPS, The Covenant +33% (−66% EHP). Path of Building values
+  life flasks' mods at nothing and counts flasks as always up; the UI says so.
+  Not done: sampling rare prices from the trade API; a combined best
+  prefix + suffix calculation (summed from each alone).
+
 ## Usage log (claude.ai → Settings → Usage)
 
 | Date | Session | Window before → after | Weekly before → after | Notes |
@@ -115,3 +152,4 @@
 | 2026-10-10 | 1–2. PoB engine + saved builds; health check + try an item | 31% → 89% | 5% → 14% | Same conversation as session 0, so not separable; another session ran at the same time, so these overstate the cost |
 | 2026-10-10 | 3. Honest DPS, boss check, gem + pantheon ranking (+ v0.3.1 rename) | 3% → 9% | 17% → 18% | New 5-hour window, still the same long conversation |
 | 2026-10-10 | 4. Passive advisor | ? → 32% | 18% → 21% | New conversation; includes checking the two test builds |
+| 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |

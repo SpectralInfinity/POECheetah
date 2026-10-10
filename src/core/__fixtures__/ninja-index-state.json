@@ -1,0 +1,8 @@
+{"economyLeagues":[
+ {"name":"Mercenaries","url":"mercenaries","displayName":"Mercenaries"},
+ {"name":"Hardcore Mercenaries","url":"mercenarieshc","displayName":"Hardcore Mercenaries"},
+ {"name":"Standard","url":"standard","displayName":"Standard"},
+ {"name":"Hardcore","url":"hardcore","displayName":"Hardcore"},
+ {"broken":true}
+],
+"oldEconomyLeagues":[{"name":"Ancestors","url":"ancestors","displayName":"Ancestors"}]}
