@@ -28,9 +28,12 @@
   main skill Poisonous Concoction of Bouncing (body armour group). PoB's own
   numbers to match: Combined DPS 5,358,662 (hit 345,272 + poison), Total EHP
   56,898, life 2,959, armour 2,685, evasion 1,453, block 47%, suppression 100%,
-  phys max hit 31,591. Cold/lightning resist show −50% but their max hit equals
-  fire's, so PoB treats them as covered; the engine must reproduce that, not
-  "fix" it.
+  phys max hit 31,591. Cold/lightning resist show −50% (two Betrayal's Sting).
+  Damage shifted to fire (90% res): cold 50% and lightning 54% (Reliquarian
+  Dawnbreaker display 25/25, Dawnbreaker shield 11/15, Watcher's Eye 14/14 with
+  Purity of Fire); physical 91% (+ Cloak of Flame 40%, a jewel 6%). Yet PoB
+  shows cold max hit = fire max hit (47,845) and lightning 45,998: unexplained
+  by the shifts alone. Check PoB's breakdown for these once the engine runs.
 
 ## Usage log (claude.ai → Settings → Usage)
 
