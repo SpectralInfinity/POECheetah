@@ -55,12 +55,20 @@ export function checkBuild(s: Stats, level: number): Finding[] {
   const best = maxHits.reduce((a, b) => (b.value > a.value ? b : a), maxHits[0]);
   for (const { type, value } of maxHits) {
     if (best && value < best.value * THRESHOLDS.weakSpotRatio) {
-      add(
-        "warning",
-        `weak-${type}`,
-        `Weak spot: ${type.toLowerCase()} hits`,
-        `The biggest ${type.toLowerCase()} hit you survive is ${num(value)}, against ${num(best.value)} for ${best.type.toLowerCase()}.`,
-      );
+      const name = type.toLowerCase();
+      const res = s[`${type}Resist`];
+      const comparison = `The biggest ${name} hit you survive is ${num(value)}, against ${num(best.value)} for ${best.type.toLowerCase()}.`;
+      if (res !== undefined && res >= 75) {
+        // Resistance is already capped: still the weakest type, but not a resistance problem.
+        add(
+          "info",
+          `weak-${type}`,
+          `Weakest against ${name} hits`,
+          `${comparison} Your ${name} resistance is already capped (${res}%), so more life or other ${name} mitigation is what would raise it.`,
+        );
+      } else {
+        add("warning", `weak-${type}`, `Weak spot: ${name} hits`, comparison);
+      }
     }
   }
 

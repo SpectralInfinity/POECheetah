@@ -36,14 +36,20 @@ const ids = (f: { id: string; severity: string }[]) => f.map((x) => `${x.severit
 describe("build health check", () => {
   it("flags the real problems of a build like the reference one", () => {
     expect(ids(checkBuild(covered, 95))).toEqual([
-      "warning:weak-Chaos",
       "warning:hit-chance",
       "warning:attr-Int",
       "warning:pool",
+      // Chaos resistance is capped, so the lowest max hit is only a note.
+      "info:weak-Chaos",
       "info:res-Cold",
       "info:res-Lightning",
       "info:mana-sustain",
     ]);
+  });
+
+  it("warns about the weakest damage type when its resistance isn't capped", () => {
+    const f = checkBuild({ ...covered, ChaosResist: 20 }, 95);
+    expect(f.find((x) => x.id === "weak-Chaos")).toMatchObject({ severity: "warning", title: "Weak spot: chaos hits" });
   });
 
   it("warns about uncapped resistance when nothing covers it", () => {

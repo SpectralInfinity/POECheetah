@@ -1,4 +1,4 @@
-# POECheetah
+# POE Cheetah (repo: POECheetah)
 
 Windows desktop app that tells Path of Exile players what to do next for their
 build: passives, item upgrades, farming and currency, league mechanics.
@@ -28,6 +28,10 @@ usage log: `docs/progress.md`.
 - `.github/workflows/` — CI: tests on Linux; Windows installer on `windows-latest`.
 
 ## Conventions
+
+- The app is called POE Cheetah; internal IDs keep `poecheetah` on purpose
+  (bundle identifier `com.spectralinfinity.poecheetah`, `poecheetah.db`).
+  Renaming them would orphan saved builds.
 
 - The app version lives in `package.json`, `src-tauri/tauri.conf.json` and
   `src-tauri/Cargo.toml`; bump all three together (a test checks they match).

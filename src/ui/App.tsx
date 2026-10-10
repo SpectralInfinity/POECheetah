@@ -122,7 +122,7 @@ export function App() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1>POECheetah</h1>
+        <h1>POE Cheetah</h1>
         <h2>Builds</h2>
         <ul className="build-list">
           {builds.map((b) => (
