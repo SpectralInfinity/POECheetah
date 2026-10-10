@@ -49,6 +49,16 @@ jobs:
         shell: bash
         run: ./scripts/fetch-pob.sh
 
+      # Git on the Windows runner fails to fetch PoB's files on demand, so the
+      # Windows job uses this copy.
+      - name: Share Path of Building with the Windows job
+        uses: actions/upload-artifact@v4
+        with:
+          name: pob
+          path: src-tauri/pob
+          retention-days: 1
+          if-no-files-found: error
+
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -80,15 +90,11 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Cache Path of Building
-        uses: actions/cache@v4
+      - name: Path of Building (fetched by the Linux job)
+        uses: actions/download-artifact@v4
         with:
+          name: pob
           path: src-tauri/pob
-          key: pob-${{ runner.os }}-${{ hashFiles('src-tauri/pob-version.txt', 'scripts/fetch-pob.sh') }}
-
-      - name: Fetch Path of Building
-        shell: bash
-        run: ./scripts/fetch-pob.sh
 
       - run: npm ci
 
