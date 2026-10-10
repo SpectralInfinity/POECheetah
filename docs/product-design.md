@@ -55,8 +55,11 @@ only explains them; it never invents them.
   ascendancy) and orders them by gain per cost, so the answer is "do these
   three things first" rather than "copy everything". Uses the same engine as
   §3.1 and §3.2.
-- **Build guides:** paste the guide's PoB link (guides publish one, often per
-  stage: league start, mid, end game). The app picks the stage closest to your
+- **Build guides** (including Maxroll): paste the guide's PoB code or link.
+  Guide PoBs often hold several trees and item sets in one code (league
+  start, mid, end game); the app lets you pick which one to compare against.
+  Links to guide sites are fetched only where the site exposes the code at a
+  stable address and its terms allow it; otherwise copy the code. The app picks the stage closest to your
   character, then (1) orders the gap as above, and (2) runs the advisors on the
   guide build itself to find cheaper or stronger choices than the guide's,
   which matters most after a patch the guide hasn't caught up with. The app
@@ -120,6 +123,68 @@ only explains them; it never invents them.
   every league. Simulated in PoB if PoB models them; otherwise a short
   curated guide that ranks options for the build's needs.
 
+### 3.7 Build health check (added 2026-10-10, session 2)
+
+Warnings computed from PoB's output, shown with every build and after every
+"try an item". Lesson from the reference build: raw resistances mislead
+(−50% cold looked bad, but damage taken as fire covers it), so checks use
+PoB's **maximum hit taken per damage type**, not resist numbers alone.
+
+- Weak spot: a damage type whose max hit is far below the build's best.
+- Elemental resist below cap only when that element's max hit is also low;
+  otherwise an info note ("covered by damage taken as another type").
+- Negative chaos resistance.
+- Mana: can't afford one use; cost per second above regen (warning) or
+  covered only by leech (info).
+- Hit chance below 90% for attacks.
+- Attribute requirements not met (gear or gems would be disabled).
+- Small life + energy shield pool for the level.
+- Spell suppression partly invested but not capped.
+
+Thresholds are named constants in `src/core/health.ts`, easy to tune from
+real use.
+
+### 3.8 Try an item (added 2026-10-10, session 2)
+
+Paste an item's text (Ctrl+C in game, the trade site, a guide). PoB computes
+the build with that item in each slot it fits (both rings, empty slots, jewel
+sockets), using its own item-compare calculator. The app shows the stat
+changes per slot and the health-check warnings the swap adds or removes
+(e.g. "Strength requirement no longer met", "lightning resist drops below
+cap"). Session 4 adds the automatic version: copy in game → result appears.
+
+### 3.9 Honest DPS and boss check (added 2026-10-10)
+
+PoB's DPS depends on the configuration boxes the player ticked (enemy
+ignited, chilled, max stacks…). Recalculate with conservative settings and
+with PoB's pinnacle-boss settings, and show both next to the configured
+number. Also rank alternative support gems for the main skill, pantheon
+choices and flask mods ("try every option in PoB and rank").
+
+### 3.10 Patch impact (added 2026-10-10)
+
+When the bundled PoB is updated for a patch, recalculate saved builds and
+show what the patch changed for each.
+
+### 3.11 Meta comparison with poe.ninja (added 2026-10-10)
+
+- Find comparable characters on poe.ninja's build pages: same main skill and
+  ascendancy (optionally a similar level).
+- Aggregate what they use: share of characters per unique item, keystone,
+  notable, support gem, cluster jewel, anoint, pantheon, flask.
+- Diff against your build: popular choices you don't have ("78% use X").
+- Rank those with PoB on **your** build (try an item §3.8, passive gains
+  §3.1): popularity alone isn't advice, so each suggestion shows its real gain
+  for you and is marked "popular and strong for you" or "popular, small gain
+  for you".
+- Top characters' PoB codes double as targets for §3.0 compare.
+- Caveats shown in the UI: ladder data leans to rich, late-league
+  characters; only public profiles are included.
+- Data access: poe.ninja has no official API. Use the JSON its own pages
+  load, cached per league for hours, low request rate, app identified in
+  User-Agent; check its terms when building. If that isn't allowed or
+  breaks, fall back to the user pasting poe.ninja character links/codes.
+
 ## 4. Data sources and game rules
 
 GGG's rule of thumb for third-party tools:
@@ -164,22 +229,27 @@ fixtures are made-up builds and synthetic log lines.
 - `src-tauri/` — Rust: runs the PoB engine, file tailing, clipboard watch,
   credential store.
 
-### 5.1 PoB engine (the riskiest part; session 1)
+### 5.1 PoB engine (built in session 1)
 
-- PoB's repo includes `src/HeadlessWrapper.lua`, which stubs out its graphics
-  host so the calculation modules run in plain LuaJIT. Session 1 proves this
-  works on Windows from inside the app.
-- How to run it: either embed LuaJIT in the Rust binary (the `mlua` crate
-  with vendored LuaJIT), or ship a small sidecar process. Either way, keep
-  one long-lived engine (loading PoB's data takes seconds) and talk JSON:
-  `load build XML` → `evaluate changes [...]` → stat deltas.
-- Native modules PoB normally gets from its own runtime (e.g. UTF-8 helpers,
-  zlib) must be provided or stubbed. Decoding the PoB code in TypeScript and
-  passing XML avoids needing zlib in Lua.
-- PoB updates: download PoB's release zip from GitHub on first run and when
-  a newer release exists, so league patches don't need an app release.
-- Speed: a passive scan is a few hundred evaluations; PoB's own heat map does
-  this in seconds, so it should be fine. Measure in session 2.
+- `src-tauri/pob-engine/`: a Rust crate that embeds LuaJIT (`mlua`, vendored)
+  and runs PoB's own `HeadlessWrapper.lua` on a dedicated thread. One engine
+  for the app's life (startup ~3 s, a build ~1 s); requests queue to it.
+- Glue (`pob-engine/lua/engine.lua`): resolves PoB's relative file paths
+  against its folder (the app's working directory is untouched), provides
+  `arg`, captures PoB's console output, and keeps real zlib `Inflate`/`Deflate`
+  (Rust, `flate2`) in place of the wrapper's stubs. Without them timeless
+  jewel data silently fails to load and defences come out wrong.
+- `lua-utf8` (MIT, vendored C) is compiled into the binary.
+- PoB is MIT-licensed. `scripts/fetch-pob.sh` downloads the version pinned in
+  `src-tauri/pob-version.txt` and keeps only what the engine needs (~210 MB:
+  sources, data, the current tree without images). The installer bundles it
+  as a resource; CI caches it.
+- Checked: on the reference build the engine reproduces PoB's numbers exactly
+  (DPS, EHP, life, max hits); a test checks a made-up build against PoB's
+  standard headless run.
+- Builds must use the current tree version (only it is bundled).
+- Later: download newer PoB releases at runtime so a league patch needs no
+  app release.
 
 ## 6. Risks
 
@@ -199,15 +269,18 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | # | Session goal | Done when |
 |---|---|---|
 | 0 | Planning + foundations: this doc, Tauri app, CI Windows installer, PoB code reader | You install the app and it shows your build's class and level |
-| 1 | PoB engine spike (§5.1): headless PoB running inside the app on Windows; saved builds (§3.0) | The app shows your build's DPS, life and EHP matching PoB within rounding |
-| 2 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
-| 3 | Item upgrade advisor (§3.2) with poe.ninja prices | Per-slot buys ranked by gain per chaos, with trade links |
-| 4 | Item check from the clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
-| 4b | Compare to a target build (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
-| 5 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
-| 6 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
-| 7 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
-| later | PoE2 via PoB's PoE2 version; Claude explanations | — |
+| 1 | PoB engine (§5.1) inside the app on Windows; saved builds (§3.0) | The app shows your build's DPS, life and EHP matching PoB |
+| 2 | Build health check (§3.7) + try an item (§3.8) | Your build's warnings make sense; pasting an item shows its stat changes and new warnings |
+| 3 | Honest DPS and boss check; rank support gems, pantheon, flasks (§3.9) | Configured vs conservative vs boss DPS side by side; best support swap found |
+| 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
+| 5 | Item upgrade advisor (§3.2) with poe.ninja prices | Per-slot buys ranked by gain per chaos, with trade links |
+| 6 | Item check from the game clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
+| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
+| 7b | Meta comparison with poe.ninja (§3.11) | For your build: popular items/passives you lack, ranked by real gain |
+| 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
+| 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
+| 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
+| later | Patch impact (§3.10); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
 

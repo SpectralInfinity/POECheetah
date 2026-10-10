@@ -1,4 +1,4 @@
-# POECheetah
+# POE Cheetah
 
 A Windows app that tells you what to do next for your Path of Exile build:
 which passives to take, which items to buy, what to farm and how to make
