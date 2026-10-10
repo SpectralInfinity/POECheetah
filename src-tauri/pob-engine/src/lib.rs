@@ -63,13 +63,57 @@ pub type Analysis = serde_json::Value;
 /// allocating it and its path; passed through like [`Analysis`].
 pub type Passives = serde_json::Value;
 
+/// Item upgrade trials (design doc §3.2): uniques in every slot they fit and
+/// ranked flask mods, passed through like [`Analysis`].
+pub type Upgrades = serde_json::Value;
+
+/// How the build's config is set for a calculation (design doc §3.1, §3.2, §3.9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Mode {
+    /// The build's config as the player set it.
+    Configured,
+    /// Situational assumptions ("When In Combat", "For Effective DPS") cleared.
+    Conservative,
+    /// Assumptions cleared and the enemy an uber pinnacle boss.
+    Boss,
+}
+
+impl Mode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Mode::Configured => "configured",
+            Mode::Conservative => "conservative",
+            Mode::Boss => "boss",
+        }
+    }
+}
+
+/// A stat PoB's weighted rare search scores items by (as its trader's weights).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatWeight {
+    /// PoB output key, e.g. `CombinedDPS` or `TotalEHP`.
+    pub stat: String,
+    pub weight_mult: f64,
+}
+
+/// A weighted trade site search for a rare in one slot.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RareSearch {
+    pub slot: String,
+    /// The trade site's query JSON (`{"query": …, "sort": …}`).
+    pub query: String,
+}
+
 type Reply<T> = mpsc::Sender<Result<T, String>>;
 
 enum Job {
     LoadBuild(String, Reply<BuildStats>),
     TryItem(String, String, Reply<ItemTrial>),
-    Analyse(String, Reply<Analysis>),
-    Passives(String, Reply<Passives>),
+    /// An engine.lua API function returning JSON, with its arguments.
+    Json(&'static str, Vec<serde_json::Value>, Reply<serde_json::Value>),
 }
 
 /// Handle to the engine thread. Cheap to share; requests run one at a time.
@@ -111,11 +155,8 @@ impl Engine {
                         Job::TryItem(xml, item, reply) => {
                             let _ = reply.send(api.try_item(&xml, &item));
                         }
-                        Job::Analyse(xml, reply) => {
-                            let _ = reply.send(api.analyse(&xml));
-                        }
-                        Job::Passives(xml, reply) => {
-                            let _ = reply.send(api.passives(&xml));
+                        Job::Json(name, args, reply) => {
+                            let _ = reply.send(api.call_json(name, args));
                         }
                     }
                 }
@@ -151,29 +192,43 @@ impl Engine {
     }
 
     /// Recalculates the build under conservative settings, against uber
-    /// bosses, with each pantheon, and with alternative support gems.
-    /// Takes tens of seconds on a large build.
-    pub fn analyse(&self, xml: &str) -> Result<Analysis, String> {
-        let (reply, result) = mpsc::channel();
-        self.jobs
-            .send(Job::Analyse(xml.to_string(), reply))
-            .map_err(|_| "Path of Building is not running".to_string())?;
-        result
-            .recv()
-            .map_err(|_| "Path of Building stopped while analysing the build".to_string())?
+    /// bosses, with each pantheon, and with alternative support gems (ranked
+    /// with the config in `mode`). Takes tens of seconds on a large build.
+    pub fn analyse(&self, xml: &str, mode: Mode) -> Result<Analysis, String> {
+        self.json("analyse", vec![xml.into(), mode.as_str().into()])
     }
 
     /// Calculates every passive worth taking next (adjacent nodes, notables
     /// and keystones a few points away, mastery effects, ascendancy notables)
-    /// and every free swap of an allocated mastery.
-    pub fn passives(&self, xml: &str) -> Result<Passives, String> {
+    /// and every free swap of an allocated mastery, with the config in `mode`.
+    pub fn passives(&self, xml: &str, mode: Mode) -> Result<Passives, String> {
+        self.json("passives", vec![xml.into(), mode.as_str().into()])
+    }
+
+    /// Tries each named unique item (names as poe.ninja lists them; PoB's
+    /// unique database supplies the item) in every slot it fits, and ranks
+    /// magic flask mods for each flask, with the config in `mode`. `["*"]`
+    /// tries every unique PoB knows (slow; for checking by hand).
+    pub fn upgrades(&self, xml: &str, mode: Mode, uniques: &[String]) -> Result<Upgrades, String> {
+        self.json("upgrades", vec![xml.into(), mode.as_str().into(), uniques.into()])
+    }
+
+    /// PoB's weighted trade search for a rare in `slot` (PoB's slot name,
+    /// e.g. "Ring 1"). Tests every trade mod in the slot: seconds per slot.
+    pub fn rare_search(&self, xml: &str, mode: Mode, slot: &str, weights: &[StatWeight]) -> Result<RareSearch, String> {
+        let weights = serde_json::to_value(weights).map_err(|e| e.to_string())?;
+        let value = self.json("rareSearch", vec![xml.into(), mode.as_str().into(), slot.into(), weights])?;
+        serde_json::from_value(value).map_err(|e| format!("Unexpected result from Path of Building: {e}"))
+    }
+
+    fn json(&self, name: &'static str, args: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
         let (reply, result) = mpsc::channel();
         self.jobs
-            .send(Job::Passives(xml.to_string(), reply))
+            .send(Job::Json(name, args, reply))
             .map_err(|_| "Path of Building is not running".to_string())?;
         result
             .recv()
-            .map_err(|_| "Path of Building stopped while checking passives".to_string())?
+            .map_err(|_| "Path of Building stopped while calculating".to_string())?
     }
 }
 
@@ -181,8 +236,7 @@ struct Api {
     lua: Lua,
     load_build: Function,
     try_item: Function,
-    analyse: Function,
-    passives: Function,
+    api: Table,
 }
 
 impl Api {
@@ -196,21 +250,21 @@ impl Api {
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
     }
 
-    fn analyse(&self, xml: &str) -> Result<Analysis, String> {
-        let value: Value = self
-            .analyse
-            .call(xml)
-            .map_err(|e| format!("Path of Building could not analyse the build: {}", lua_message(&e)))?;
-        self.lua
-            .from_value(value)
-            .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
-    }
-
-    fn passives(&self, xml: &str) -> Result<Passives, String> {
-        let value: Value = self
-            .passives
-            .call(xml)
-            .map_err(|e| format!("Path of Building could not check passives: {}", lua_message(&e)))?;
+    fn call_json(&self, name: &str, args: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
+        let what = match name {
+            "analyse" => "analyse the build",
+            "passives" => "check passives",
+            "upgrades" => "try items",
+            _ => "make a trade search",
+        };
+        let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));
+        let function: Function = self.api.get(name).map_err(fail)?;
+        let args = args
+            .iter()
+            .map(|a| self.lua.to_value(a))
+            .collect::<mlua::Result<mlua::MultiValue>>()
+            .map_err(fail)?;
+        let value: Value = function.call(args).map_err(fail)?;
         self.lua
             .from_value(value)
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
@@ -254,9 +308,7 @@ fn start_lua(pob_dir: &str) -> Result<Api, String> {
         .map_err(fail)?;
     let load_build: Function = api.get("loadBuild").map_err(fail)?;
     let try_item: Function = api.get("tryItem").map_err(fail)?;
-    let analyse: Function = api.get("analyse").map_err(fail)?;
-    let passives: Function = api.get("passives").map_err(fail)?;
-    Ok(Api { lua, load_build, try_item, analyse, passives })
+    Ok(Api { lua, load_build, try_item, api })
 }
 
 /// Error text without mlua's wrapping (PoB's own messages are what matter).

@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use pob_engine::Engine;
+use pob_engine::{Engine, Mode, StatWeight};
 
 fn pob_dir() -> Option<PathBuf> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../pob");
@@ -96,7 +96,7 @@ fn analyses_a_build_and_leaves_it_unchanged() {
     let engine = Engine::start(&dir).expect("engine starts");
     let xml = include_str!("fixtures/fireball-witch.xml");
     let before = engine.load_build(xml).expect("build loads");
-    let analysis = engine.analyse(xml).expect("analysed");
+    let analysis = engine.analyse(xml, Mode::Configured).expect("analysed");
 
     assert_eq!(analysis["configured"]["CombinedDPS"].as_f64(), before.stats.get("CombinedDPS").copied());
     assert_eq!(analysis["cleared"].as_array().map_or(0, |a| a.len()), 0, "fixture changes no PoB defaults");
@@ -116,7 +116,7 @@ fn finds_passives_to_take_and_leaves_the_build_unchanged() {
     // Elementalist points and a Life Mastery.
     let xml = include_str!("fixtures/elementalist-tree.xml");
     let before = engine.load_build(xml).expect("build loads");
-    let result = engine.passives(xml).expect("passives");
+    let result = engine.passives(xml, Mode::Configured).expect("passives");
 
     assert_eq!(result["pointsUsed"].as_f64(), Some(116.0));
     assert_eq!(result["ascendancyUsed"].as_f64(), Some(3.0));
@@ -152,8 +152,89 @@ fn finds_passives_to_take_and_leaves_the_build_unchanged() {
 fn passives_on_an_empty_tree_are_its_start_neighbours() {
     let Some(dir) = pob_dir() else { return };
     let engine = Engine::start(&dir).expect("engine starts");
-    let result = engine.passives(include_str!("fixtures/fireball-witch.xml")).expect("passives");
+    let result = engine.passives(include_str!("fixtures/fireball-witch.xml"), Mode::Configured).expect("passives");
     let candidates = result["candidates"].as_array().expect("candidates");
     assert!(!candidates.is_empty() && candidates.iter().all(|c| c["points"] == 1));
     assert_eq!(result["masterySwaps"], serde_json::json!([]));
+}
+
+/// The fireball witch with an active magic Silver Flask, a ring, and the
+/// enemy set as shocked (a situational assumption). Made up.
+fn witch_with_flask() -> String {
+    include_str!("fixtures/fireball-witch.xml")
+        .replace(
+            "<ItemSet id=\"1\"/>",
+            "<Item id=\"1\">Rarity: MAGIC\nSilver Flask\n</Item>\
+             <Item id=\"2\">Rarity: RARE\nTest Loop\nGold Ring\n+50 to maximum Life\n</Item>\
+             <ItemSet id=\"1\"><Slot name=\"Flask 1\" itemId=\"1\" active=\"true\"/><Slot name=\"Ring 1\" itemId=\"2\"/></ItemSet>",
+        )
+        .replace("<Config/>", "<Config><Input name=\"conditionEnemyShocked\" boolean=\"true\"/><Input name=\"conditionShockEffect\" number=\"50\"/></Config>")
+}
+
+#[test]
+fn modes_clear_assumptions_and_leave_the_build_unchanged() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = witch_with_flask();
+    let before = engine.load_build(&xml).expect("build loads");
+    let dps = |mode| {
+        let r = engine.passives(&xml, mode).expect("passives");
+        r["before"]["CombinedDPS"].as_f64().unwrap()
+    };
+    let (configured, conservative, boss) = (dps(Mode::Configured), dps(Mode::Conservative), dps(Mode::Boss));
+    assert_eq!(Some(configured), before.stats.get("CombinedDPS").copied());
+    assert!(conservative < configured, "no shocked enemy: {conservative} < {configured}");
+    assert!(boss < conservative, "uber boss: {boss} < {conservative}");
+    let analysis = engine.analyse(&xml, Mode::Boss).expect("analysed");
+    assert_eq!(analysis["cleared"], serde_json::json!(["Is the enemy Shocked?", "Effect of Shock: 50"]));
+    assert_eq!(analysis["mode"], "boss");
+    assert_eq!(engine.load_build(&xml).expect("build loads again").stats, before.stats);
+}
+
+#[test]
+fn tries_uniques_and_ranks_flask_mods() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = witch_with_flask();
+    let before = engine.load_build(&xml).expect("build loads");
+    let names = ["Kaom's Heart", "Le Heup of All", "Not A Real Unique"].map(String::from);
+    let result = engine.upgrades(&xml, Mode::Configured, &names).expect("upgrades");
+
+    assert_eq!(result["missing"], serde_json::json!(["Not A Real Unique"]));
+    let uniques = result["uniques"].as_array().expect("uniques");
+    let slots_of = |name: &str| -> Vec<&str> {
+        uniques.iter().filter(|u| u["name"].as_str().unwrap().starts_with(name)).map(|u| u["slot"].as_str().unwrap()).collect()
+    };
+    assert_eq!(slots_of("Kaom's Heart"), ["Body Armour"]);
+    assert_eq!(slots_of("Le Heup of All"), ["Ring 1", "Ring 2"]);
+    let kaom = uniques.iter().find(|u| u["slot"] == "Body Armour").unwrap();
+    assert!(kaom["stats"]["Life"].as_f64().unwrap() > before.stats["Life"] + 400.0);
+    let ring1 = uniques.iter().find(|u| u["slot"] == "Ring 1").unwrap();
+    assert_eq!(ring1["replaces"], "Test Loop, Gold Ring");
+
+    let flasks = result["flasks"].as_array().expect("flasks");
+    assert_eq!(flasks.len(), 1);
+    assert_eq!(flasks[0]["slot"], "Flask 1");
+    assert_eq!(flasks[0]["active"], true);
+    let plain = flasks[0]["plain"]["CombinedDPS"].as_f64().unwrap();
+    let prefixes = flasks[0]["prefixes"].as_array().unwrap();
+    assert!(prefixes.iter().any(|p| p["stats"]["CombinedDPS"].as_f64().unwrap() > plain), "more flask effect, more cast speed");
+    assert!(!flasks[0]["suffixes"].as_array().unwrap().is_empty());
+
+    assert_eq!(engine.load_build(&xml).expect("build loads again").stats, before.stats);
+}
+
+#[test]
+fn makes_a_weighted_rare_search_for_a_slot() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = witch_with_flask();
+    let weights = [StatWeight { stat: "CombinedDPS".into(), weight_mult: 1.0 }];
+    let search = engine.rare_search(&xml, Mode::Conservative, "Ring 1", &weights).expect("search");
+    let query: serde_json::Value = serde_json::from_str(&search.query).expect("query is JSON");
+    assert_eq!(query["query"]["filters"]["type_filters"]["filters"]["category"]["option"], "accessory.ring");
+    assert_eq!(query["query"]["stats"][0]["type"], "weight");
+    assert!(!query["query"]["stats"][0]["filters"].as_array().unwrap().is_empty());
+    let err = engine.rare_search(&xml, Mode::Conservative, "Ring 9", &weights).unwrap_err();
+    assert!(err.contains("Ring 9"), "{err}");
 }
