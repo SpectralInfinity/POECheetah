@@ -39,14 +39,26 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Cache Path of Building
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/pob
+          key: pob-${{ runner.os }}-${{ hashFiles('src-tauri/pob-version.txt', 'scripts/fetch-pob.sh') }}
+
+      - name: Fetch Path of Building
+        shell: bash
+        run: ./scripts/fetch-pob.sh
+
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
 
-      - name: Rust tests
+      - name: Rust tests (including the Path of Building engine)
         working-directory: src-tauri
-        run: cargo test --locked
+        env:
+          REQUIRE_POB: "1"
+        run: cargo test --workspace --locked
 
   windows-installer:
     name: Windows installer
@@ -67,6 +79,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      - name: Cache Path of Building
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/pob
+          key: pob-${{ runner.os }}-${{ hashFiles('src-tauri/pob-version.txt', 'scripts/fetch-pob.sh') }}
+
+      - name: Fetch Path of Building
+        shell: bash
+        run: ./scripts/fetch-pob.sh
 
       - run: npm ci
 

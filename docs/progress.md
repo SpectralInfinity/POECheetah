@@ -6,7 +6,9 @@
       PoB code reader. *Done when* you install the app and it shows your
       build's class and level. (Built 2026-10-10 as v0.1.0; tick once installed
       from the CI artifact and a real PoB code reads correctly.)
-- [ ] 1. PoB engine spike (headless PoB inside the app).
+- [x] 1. PoB engine (headless PoB inside the app) + saved builds.
+      (Built 2026-10-10 as v0.2.0; tick once the installed app shows your
+      build's stats matching PoB.)
 - [ ] 2. Passive advisor.
 - [ ] 3. Item upgrade advisor.
 - [ ] 4. Item check from the clipboard.
@@ -35,8 +37,22 @@
   shows cold max hit = fire max hit (47,845) and lightning 45,998: unexplained
   by the shifts alone. Check PoB's breakdown for these once the engine runs.
 
+- **1:** Engine = `src-tauri/pob-engine` (LuaJIT via mlua, PoB's
+  HeadlessWrapper, real zlib; see design doc §5.1). Run
+  `scripts/fetch-pob.sh` once before `cargo test` or `npm run tauri dev`
+  (CI does it, cached). `cargo run --release --example stats -- build.xml` in
+  `src-tauri/pob-engine` prints a build's stats. Matches the reference build
+  exactly. Saved builds: SQLite (`src/data/builds.ts`, migration 0001), each
+  pasted code is a version; the UI shows changes since the previous version.
+  Browser preview uses an in-memory store and sample numbers. This Linux
+  environment can compile the Tauri shell after
+  `apt-get install libwebkit2gtk-4.1-dev librsvg2-dev`.
+  Not done yet: why cold max hit = fire max hit on the reference build
+  (inspect with the engine in session 2).
+
 ## Usage log (claude.ai → Settings → Usage)
 
 | Date | Session | Window before → after | Weekly before → after | Notes |
 |---|---|---|---|---|
 | 2026-10-10 | 0. Planning + foundations | ? → 31% | ~0% → 5% | Started in a Dancing Cabbage session; repo attached mid-session |
+| 2026-10-10 | 1. PoB engine + saved builds | 31% → ? | 5% → ? | Same conversation as session 0 |

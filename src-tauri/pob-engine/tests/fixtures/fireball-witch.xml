@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathOfBuilding>
+	<Build level="90" targetVersion="3_0" className="Witch" ascendClassName="None" mainSocketGroup="1" viewMode="CALCS" bandit="None">
+	</Build>
+	<Tree activeSpec="1">
+		<Spec treeVersion="3_29" classId="3" ascendClassId="0" nodes="">
+		</Spec>
+	</Tree>
+	<Skills activeSkillSet="1">
+		<SkillSet id="1">
+			<Skill enabled="true" mainActiveSkill="1" includeInFullDPS="true">
+				<Gem nameSpec="Fireball" skillId="Fireball" gemId="Metadata/Items/Gems/SkillGemFireball" level="20" quality="20" enabled="true"/>
+			</Skill>
+		</SkillSet>
+	</Skills>
+	<Items activeItemSet="1">
+		<ItemSet id="1"/>
+	</Items>
+	<Config/>
+</PathOfBuilding>

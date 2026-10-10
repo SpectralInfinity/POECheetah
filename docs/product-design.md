@@ -164,22 +164,27 @@ fixtures are made-up builds and synthetic log lines.
 - `src-tauri/` — Rust: runs the PoB engine, file tailing, clipboard watch,
   credential store.
 
-### 5.1 PoB engine (the riskiest part; session 1)
+### 5.1 PoB engine (built in session 1)
 
-- PoB's repo includes `src/HeadlessWrapper.lua`, which stubs out its graphics
-  host so the calculation modules run in plain LuaJIT. Session 1 proves this
-  works on Windows from inside the app.
-- How to run it: either embed LuaJIT in the Rust binary (the `mlua` crate
-  with vendored LuaJIT), or ship a small sidecar process. Either way, keep
-  one long-lived engine (loading PoB's data takes seconds) and talk JSON:
-  `load build XML` → `evaluate changes [...]` → stat deltas.
-- Native modules PoB normally gets from its own runtime (e.g. UTF-8 helpers,
-  zlib) must be provided or stubbed. Decoding the PoB code in TypeScript and
-  passing XML avoids needing zlib in Lua.
-- PoB updates: download PoB's release zip from GitHub on first run and when
-  a newer release exists, so league patches don't need an app release.
-- Speed: a passive scan is a few hundred evaluations; PoB's own heat map does
-  this in seconds, so it should be fine. Measure in session 2.
+- `src-tauri/pob-engine/`: a Rust crate that embeds LuaJIT (`mlua`, vendored)
+  and runs PoB's own `HeadlessWrapper.lua` on a dedicated thread. One engine
+  for the app's life (startup ~3 s, a build ~1 s); requests queue to it.
+- Glue (`pob-engine/lua/engine.lua`): resolves PoB's relative file paths
+  against its folder (the app's working directory is untouched), provides
+  `arg`, captures PoB's console output, and keeps real zlib `Inflate`/`Deflate`
+  (Rust, `flate2`) in place of the wrapper's stubs. Without them timeless
+  jewel data silently fails to load and defences come out wrong.
+- `lua-utf8` (MIT, vendored C) is compiled into the binary.
+- PoB is MIT-licensed. `scripts/fetch-pob.sh` downloads the version pinned in
+  `src-tauri/pob-version.txt` and keeps only what the engine needs (~210 MB:
+  sources, data, the current tree without images). The installer bundles it
+  as a resource; CI caches it.
+- Checked: on the reference build the engine reproduces PoB's numbers exactly
+  (DPS, EHP, life, max hits); a test checks a made-up build against PoB's
+  standard headless run.
+- Builds must use the current tree version (only it is bundled).
+- Later: download newer PoB releases at runtime so a league patch needs no
+  app release.
 
 ## 6. Risks
 
