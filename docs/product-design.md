@@ -9,7 +9,7 @@ Status: draft · Owner: SpectralInfinity · Last updated: 2026-10-10
 | Platform | **Windows desktop app** | Tauri 2 (same stack as Dancing Cabbage). Needed anyway: reading the game log, the clipboard and running Path of Building locally all require a local app |
 | Game | **Path of Exile 1 first**, PoE2 later | PoB Community (PoE1) is the calculation engine; the PoE2 fork is added later (§7) |
 | Calculation | **Use Path of Building, don't rewrite it** | PoB runs headless inside the app; league patches arrive as PoB updates, not app releases |
-| Input | PoB export code first, GGG account login later | Works with no login and no GGG approval |
+| Input | PoB codes and build links first (several builds saved, §3.0), GGG account login later | Works with no login and no GGG approval |
 | Plain price checking | **Not built** | Awakened PoE Trade / Exiled Exchange 2 already do it well (§4) |
 | Budget | Claude **Pro** plan | Small sessions, one row of §7 each; same rules as Dancing Cabbage §15 |
 
@@ -40,6 +40,21 @@ The numbers always come from PoB and market data. Claude (later, optional)
 only explains them; it never invents them.
 
 ## 3. Features
+
+### 3.0 Build library and inputs (added 2026-10-10)
+
+- **Several builds saved**, each with a name (e.g. "Main – Reliquarian",
+  "League starter"), shown in a list; one is active. Re-pasting a newer code
+  for the same build updates it and keeps the old version, so you can see what
+  changed since last time.
+- **Accepted inputs:** a PoB code; a link that holds one (pobb.in, pastebin,
+  poe.ninja character pages): the app fetches the code from the link; later,
+  characters from your GGG account (§4).
+- **Compare to a target build** (e.g. a guide or a top poe.ninja character
+  with the same skill): the app lists the differences (passives, items, gems,
+  ascendancy) and orders them by gain per cost, so the answer is "do these
+  three things first" rather than "copy everything". Uses the same engine as
+  §3.1 and §3.2.
 
 ### 3.1 Passive advisor (first feature)
 
@@ -164,10 +179,11 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | # | Session goal | Done when |
 |---|---|---|
 | 0 | Planning + foundations: this doc, Tauri app, CI Windows installer, PoB code reader | You install the app and it shows your build's class and level |
-| 1 | PoB engine spike (§5.1): headless PoB running inside the app on Windows | The app shows your build's DPS, life and EHP matching PoB within rounding |
+| 1 | PoB engine spike (§5.1): headless PoB running inside the app on Windows; saved builds (§3.0) | The app shows your build's DPS, life and EHP matching PoB within rounding |
 | 2 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 3 | Item upgrade advisor (§3.2) with poe.ninja prices | Per-slot buys ranked by gain per chaos, with trade links |
 | 4 | Item check from the clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
+| 4b | Compare to a target build (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
 | 5 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 6 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 7 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
