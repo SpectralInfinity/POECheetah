@@ -84,7 +84,16 @@ only explains them; it never invents them.
   masteries, and ascendancy notables within the free ascendancy points (ranked
   separately: they're a different kind of point).
 
-### 3.2 Item upgrade advisor
+### 3.2 Item upgrade advisor (built in session 5)
+
+Built as: every unique poe.ninja prices in the chosen league, tried by PoB in
+each slot it fits (cluster and timeless jewels skipped: they reshape the
+tree), ranked by goal gain per chaos, with a trade link each; magic flask
+mods ranked per flask (best tier, best roll, each mod alone); rares via PoB's
+own weighted trade search (`TradeQueryGenerator`), opened on the trade site.
+Rare prices aren't sampled from the trade API yet: the search link shows
+them. Goal, the "count my situational assumptions" switch (off by default)
+and the league are shared by the passive, item and gem advice.
 
 - Per slot, candidates from: popular uniques for the build's skill, and
   weighted rare searches. PoB already contains a trade-query generator with

@@ -34,6 +34,12 @@ describe("passive advisor", () => {
     expect(planPassives(r, "balanced").passives.map((p) => p.name)).toEqual(["Both", "Dmg", "Life"]);
   });
 
+  it("ranks bossing like balanced, without drawbacks", () => {
+    const glass = node({ name: "Glass", stats: { CombinedDPS: 1500, FireResist: 60 } });
+    const both = node({ name: "Both", stats: { CombinedDPS: 1060, TotalEHP: 10_600 } });
+    expect(planPassives(result([glass, both]), "bossing").passives.map((p) => p.name)).toEqual(["Both"]);
+  });
+
   it("never recommends a resist drop or a sharp life loss for Balanced, and flags them otherwise", () => {
     const keystone = node({ name: "Glass", kind: "keystone", stats: { CombinedDPS: 1500, Life: 1, TotalEHP: 4000 } });
     const resist = node({ name: "Cold", stats: { CombinedDPS: 1200, ColdResist: 60 } });

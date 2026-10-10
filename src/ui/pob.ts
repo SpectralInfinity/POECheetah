@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
+import type { Mode } from "../core/goals";
 import type { PassiveCandidate, PassiveResult } from "../core/passives";
+import type { UniqueTrial, UpgradeResult } from "../core/upgrades";
 import type { Stats } from "../core/stats";
 import { isTauri } from "../data/db";
 
@@ -34,16 +36,36 @@ export async function tryItem(xml: string, item: string): Promise<ItemTrial> {
   return invoke<ItemTrial>("pob_try_item", { xml, item });
 }
 
-/** Honest DPS, boss check, pantheon and support gem ranking (about 30 s on a big build). */
-export async function analyse(xml: string): Promise<Analysis> {
+/** Honest DPS, boss check, pantheon and support gem ranking in `mode` (about 30 s on a big build). */
+export async function analyse(xml: string, mode: Mode): Promise<Analysis> {
   if (!isTauri()) return previewAnalysis(xml);
-  return invoke<Analysis>("pob_analyse", { xml });
+  return invoke<Analysis>("pob_analyse", { xml, mode });
 }
 
-/** Every passive worth taking next, each calculated with its path (seconds to a minute). */
-export async function passives(xml: string): Promise<PassiveResult> {
-  if (!isTauri()) return previewPassives(xml);
-  return invoke<PassiveResult>("pob_passives", { xml });
+/** Every passive worth taking next, each calculated with its path, in `mode` (seconds to a minute). */
+export async function passives(xml: string, mode: Mode): Promise<PassiveResult> {
+  if (!isTauri()) return previewPassives(xml, mode);
+  return invoke<PassiveResult>("pob_passives", { xml, mode });
+}
+
+/** Each named unique tried in every slot it fits, and flask mods, in `mode` (up to a minute). */
+export async function upgrades(xml: string, mode: Mode, uniques: string[]): Promise<UpgradeResult> {
+  if (!isTauri()) return previewUpgrades(xml, mode, uniques);
+  return invoke<UpgradeResult>("pob_upgrades", { xml, mode, uniques });
+}
+
+/** PoB's weighted trade search for a rare in one slot (a few seconds); the trade query as JSON. */
+export async function rareSearch(
+  xml: string,
+  mode: Mode,
+  slot: string,
+  weights: { stat: string; weightMult: number }[],
+): Promise<{ slot: string; query: string }> {
+  if (!isTauri()) {
+    const query = { query: { status: { option: "available" }, stats: [{ type: "weight", filters: [], value: { min: 1 } }] } };
+    return { slot, query: JSON.stringify(query) };
+  }
+  return invoke<{ slot: string; query: string }>("pob_rare_search", { xml, mode, slot, weights });
 }
 
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
@@ -118,13 +140,17 @@ function previewAnalysis(xml: string): Analysis {
         { name: "Unbound Ailments", dpsWithout: configured.CombinedDPS * 0.64 },
       ],
       replacing: "Greater Multiple Projectiles",
-      candidates: [{ name: "Awakened Deadly Ailments", stats: { CombinedDPS: configured.CombinedDPS * 1.059 } }],
+      candidates: [
+        { name: "Awakened Greater Multiple Projectiles", level: 5, stats: { CombinedDPS: configured.CombinedDPS * 1.08 } },
+        { name: "Awakened Deadly Ailments", level: 5, stats: { CombinedDPS: configured.CombinedDPS * 1.059 } },
+      ],
     },
   };
 }
 
-function previewPassives(xml: string): PassiveResult {
-  const before = previewResult(xml).stats;
+function previewPassives(xml: string, mode: Mode): PassiveResult {
+  const full = previewResult(xml).stats;
+  const before: Stats = { ...full, CombinedDPS: full.CombinedDPS * (mode === "configured" ? 1 : mode === "conservative" ? 0.53 : 0.3) };
   let id = 0;
   const node = (
     kind: PassiveCandidate["kind"],
@@ -171,6 +197,55 @@ function previewPassives(xml: string): PassiveResult {
         replaces: ["Poisons you inflict deal Damage 10% faster"],
         via: [],
       }),
+    ],
+  };
+}
+
+function previewUpgrades(xml: string, mode: Mode, names: string[]): UpgradeResult {
+  const full = previewResult(xml).stats;
+  const before: Stats = { ...full, CombinedDPS: full.CombinedDPS * (mode === "configured" ? 1 : mode === "conservative" ? 0.53 : 0.3) };
+  const level = previewResult(xml).stats.Life / 31;
+  const slots = [
+    { slot: "Body Armour", slotName: "Body Armour", item: "Cloak of Flame, Scholar's Robe", rarity: "UNIQUE", links: 6 },
+    { slot: "Ring 1", slotName: "Ring 1", item: "Betrayal's Sting, Steel Ring", rarity: "UNIQUE", links: 0 },
+    { slot: "Ring 2", slotName: "Ring 2", item: "Betrayal's Sting, Steel Ring", rarity: "UNIQUE", links: 0 },
+    { slot: "Flask 2", slotName: "Flask 2", item: "Quicksilver Flask of Adrenaline", rarity: "MAGIC", links: 0 },
+  ];
+  const tried = (name: string, base: string, slot: string, dps: number, ehp: number, extra: Partial<UniqueTrial> = {}): UniqueTrial => ({
+    name,
+    base,
+    slot,
+    slotName: slot,
+    replaces: slots.find((s) => s.slot === slot)?.item ?? null,
+    level: 60,
+    stats: { ...before, CombinedDPS: before.CombinedDPS * (1 + dps), TotalEHP: before.TotalEHP * (1 + ehp) },
+    ...extra,
+  });
+  const all = [
+    tried("Kaom's Heart", "Glorious Plate", "Body Armour", -0.2, 0.25, { stats: { ...before, TotalEHP: before.TotalEHP * 1.25, CombinedDPS: before.CombinedDPS * 0.8 } }),
+    tried("Le Heup of All", "Iron Ring", "Ring 1", 0.04, 0.02),
+    tried("Le Heup of All", "Iron Ring", "Ring 2", 0.04, 0.02),
+    tried("Precursor's Emblem", "Topaz Ring", "Ring 1", 0.09, 0.03),
+    tried("Dying Sun", "Ruby Flask", "Flask 2", 0.13, 0),
+  ];
+  const plain = { ...before, CombinedDPS: before.CombinedDPS * 0.97 };
+  return {
+    mode,
+    level: Math.round(level),
+    before,
+    slots,
+    uniques: all.filter((u) => names.includes(u.name)),
+    missing: names.filter((n) => n === "Made Up Unique"),
+    flasks: [
+      {
+        slot: "Flask 2",
+        slotName: "Flask 2",
+        flask: "Quicksilver Flask of Adrenaline",
+        active: true,
+        plain,
+        prefixes: [{ modId: "a", lines: ["25% increased effect", "(33-25)% reduced Duration"], stats: { ...plain, CombinedDPS: plain.CombinedDPS * 1.04 } }],
+        suffixes: [{ modId: "b", lines: ["(14-20)% increased Attack Speed during Effect"], stats: { ...plain, CombinedDPS: plain.CombinedDPS * 1.06 } }],
+      },
     ],
   };
 }

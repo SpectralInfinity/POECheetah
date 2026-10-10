@@ -323,3 +323,17 @@ ul.passives {
 .goal button {
   padding: 4px 12px;
 }
+
+.check,
+.league {
+  display: block;
+  margin-top: 8px;
+}
+
+.budget {
+  width: 6em;
+}
+
+.panel details {
+  margin: 8px 0;
+}

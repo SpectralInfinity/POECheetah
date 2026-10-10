@@ -1,4 +1,5 @@
 import { change } from "./analysis";
+import { avoidsDrawbacks, goalGain, type Goal } from "./goals";
 import type { Stats } from "./stats";
 
 /** One passive the engine calculated (design doc §3.1). */
@@ -31,14 +32,6 @@ export interface PassiveResult {
   masterySwaps: PassiveCandidate[];
 }
 
-export type Goal = "damage" | "defence" | "balanced";
-
-export const GOALS: { id: Goal; label: string }[] = [
-  { id: "damage", label: "Damage" },
-  { id: "defence", label: "Defence" },
-  { id: "balanced", label: "Balanced" },
-];
-
 /** Passive points from quests (all acts done); PoB's maximum is 99 levels + these. */
 export const QUEST_POINTS = 23;
 export const ASCENDANCY_POINTS = 8;
@@ -55,12 +48,14 @@ const RESISTS = [
   { key: "ChaosResist", label: "Chaos res" },
 ];
 
+const ATTRIBUTE: Record<string, string> = { Str: "Strength", Dex: "Dexterity", Int: "Intelligence" };
+
 const pct = (x: number) => `${x > 0 ? "+" : "−"}${Math.abs(Math.round(x * 100))}%`;
 
 /**
  * What a change costs the build: a resist going down (PoB's resist is already
- * capped, so any drop is below cap or further below it), or a sharp loss of
- * life, effective HP or DPS.
+ * capped, so any drop is below cap or further below it), a sharp loss of
+ * life, effective HP or DPS, or an attribute requirement no longer met.
  */
 export function drawbacks(before: Stats, after: Stats): string[] {
   const out: string[] = [];
@@ -77,6 +72,13 @@ export function drawbacks(before: Stats, after: Stats): string[] {
     const c = change(before[key] ?? 0, after[key] ?? 0);
     if (c < -SHARP_DROP) out.push(`${label} ${pct(c)}`);
   }
+  for (const attr of ["Str", "Dex", "Int"]) {
+    const req = after[`Req${attr}`];
+    const had = (before[attr] ?? 0) >= (before[`Req${attr}`] ?? 0);
+    if (req !== undefined && after[attr] !== undefined && after[attr] < req && had) {
+      out.push(`${ATTRIBUTE[attr]} ${Math.round(after[attr])} of ${Math.round(req)} needed`);
+    }
+  }
   return out;
 }
 
@@ -91,12 +93,6 @@ export interface PassiveAdvice extends PassiveCandidate {
   count: number;
 }
 
-function goalGain(goal: Goal, dps: number, ehp: number): number {
-  if (goal === "damage") return dps;
-  if (goal === "defence") return ehp;
-  return (dps + ehp) / 2;
-}
-
 function advise(before: Stats, c: PassiveCandidate, goal: Goal): PassiveAdvice {
   const dps = change(before.CombinedDPS ?? 0, c.stats.CombinedDPS ?? 0);
   const ehp = change(before.TotalEHP ?? 0, c.stats.TotalEHP ?? 0);
@@ -105,7 +101,7 @@ function advise(before: Stats, c: PassiveCandidate, goal: Goal): PassiveAdvice {
 }
 
 /**
- * Best first, only real gains; Balanced drops anything with a drawback. One
+ * Best first, only real gains; Balanced and Bossing drop anything with a drawback. One
  * entry per node (a mastery keeps its best effect), and one per identical
  * choice: the same stats for the same points elsewhere on the tree, or the
  * same effect swapped onto either of two masteries of a kind (the best kept).
@@ -115,7 +111,7 @@ function rank(before: Stats, list: PassiveCandidate[], goal: Goal, limit: number
   for (const c of list) {
     const a = advise(before, c, goal);
     if (a.score * Math.max(1, a.points) < MIN_GAIN) continue;
-    if (goal === "balanced" && a.drawbacks.length > 0) continue;
+    if (avoidsDrawbacks(goal) && a.drawbacks.length > 0) continue;
     const seen = best.get(a.id);
     if (!seen || a.score > seen.score) best.set(a.id, a);
   }

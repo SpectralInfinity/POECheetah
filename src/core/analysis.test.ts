@@ -38,4 +38,20 @@ describe("analysis advice", () => {
     ]);
     expect(advice.better.map((b) => b.name)).toEqual(["C"]);
   });
+
+  it("prices replacements and leaves out supports nobody sells", () => {
+    const supports = {
+      baseDps: 1000,
+      current: [{ name: "A", dpsWithout: 900 }],
+      replacing: "A",
+      candidates: [
+        { name: "Awakened Gone", level: 5, stats: { CombinedDPS: 1200 } },
+        { name: "Sold", level: 20, stats: { CombinedDPS: 1100 } },
+      ],
+    };
+    const advice = supportAdvice(supports, 5, (name, level) => (name === "Sold" && level === 20 ? { chaos: 3, thin: false } : null));
+    expect(advice.better).toEqual([{ name: "Sold", level: 20, gain: 0.1, price: { chaos: 3, thin: false } }]);
+    expect(advice.unobtainable).toEqual(["Awakened Gone"]);
+    expect(supportAdvice(supports).better.map((b) => b.name)).toEqual(["Awakened Gone", "Sold"]);
+  });
 });

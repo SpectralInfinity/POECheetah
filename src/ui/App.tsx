@@ -3,7 +3,10 @@ import { APP_BUILD, APP_VERSION } from "../buildInfo";
 import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
 import { change, pantheonAdvice, supportAdvice, type Analysis } from "../core/analysis";
 import { checkBuild, diffFindings, type Finding } from "../core/health";
-import { ASCENDANCY_POINTS, GOALS, planPassives, type Goal, type PassiveAdvice, type PassiveResult } from "../core/passives";
+import { GOALS, goalLabel, modeFor, type Goal, type Mode } from "../core/goals";
+import { formatPrice, gemPrice, gemQuery, tradeSearchUrl, type NinjaItemLine } from "../core/market";
+import { ASCENDANCY_POINTS, planPassives, type PassiveAdvice, type PassiveResult } from "../core/passives";
+import type { UpgradeResult } from "../core/upgrades";
 import { diffStats, formatStat, HEADLINE_STATS, type Stats } from "../core/stats";
 import {
   memoryBuildStore,
@@ -14,9 +17,11 @@ import {
   type SavedBuild,
 } from "../data/builds";
 import { isTauri, openDb } from "../data/db";
-import { analyse, calculate, passives, tryItem, type ItemTrial } from "./pob";
+import { MODE_TEXT, message, signed } from "./format";
+import { loadGemPrices, loadLeagues, openLink, savedLeague, saveLeague } from "./market";
+import { analyse, calculate, passives, rareSearch, tryItem, upgrades, type ItemTrial } from "./pob";
+import { ItemUpgrades, type RareSearchFn } from "./Upgrades";
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Decodes a pasted code and calculates it with PoB. A PoB failure still saves the build, without stats. */
 async function prepare(code: string): Promise<{ version: NewVersion; warning: string }> {
@@ -174,8 +179,10 @@ export function App() {
             onUpdate={addVersion}
             onRecalculate={recalculate}
             onTryItem={async (item) => tryItem(await decodeBuildCode(active.latest.code), item)}
-            onAnalyse={async () => analyse(await decodeBuildCode(active.latest.code))}
-            onPassives={async () => passives(await decodeBuildCode(active.latest.code))}
+            onAnalyse={async (mode) => analyse(await decodeBuildCode(active.latest.code), mode)}
+            onPassives={async (mode) => passives(await decodeBuildCode(active.latest.code), mode)}
+            onUpgrades={async (mode, names) => upgrades(await decodeBuildCode(active.latest.code), mode, names)}
+            onRareSearch={async (mode, slot, weights) => rareSearch(await decodeBuildCode(active.latest.code), mode, slot, weights)}
             onRename={(name) => run("", async () => (await store!.rename(active.id, name), await refresh(active.id)))}
             onDelete={() => run("", async () => (await store!.remove(active.id), await refresh(null)))}
           />
@@ -228,8 +235,10 @@ function BuildView(props: {
   onUpdate: (code: string) => void;
   onRecalculate: (v: BuildVersion) => void;
   onTryItem: (item: string) => Promise<ItemTrial>;
-  onAnalyse: () => Promise<Analysis>;
-  onPassives: () => Promise<PassiveResult>;
+  onAnalyse: (mode: Mode) => Promise<Analysis>;
+  onPassives: (mode: Mode) => Promise<PassiveResult>;
+  onUpgrades: (mode: Mode, uniques: string[]) => Promise<UpgradeResult>;
+  onRareSearch: RareSearchFn;
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
@@ -239,6 +248,20 @@ function BuildView(props: {
   const [code, setCode] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(build.name);
+  const [goal, setGoal] = useState<Goal>("balanced");
+  const [countAssumptions, setCountAssumptions] = useState(false);
+  const [league, setLeague] = useState(savedLeague() ?? "");
+  const [leagues, setLeagues] = useState<string[]>([]);
+  const mode = modeFor(goal, countAssumptions);
+
+  useEffect(() => {
+    loadLeagues()
+      .then(({ current, all }) => {
+        setLeagues(all);
+        setLeague((l) => (l && all.includes(l) ? l : (current ?? all[0] ?? l)));
+      })
+      .catch(() => setLeagues([]));
+  }, []);
 
   return (
     <>
@@ -294,10 +317,46 @@ function BuildView(props: {
       {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
 
       {latest.stats && (
-        <NextPassives key={`p${latest.id}`} mainSkill={latest.mainSkill} disabled={props.disabled} onRun={props.onPassives} />
+        <AdviceSettings
+          goal={goal}
+          onGoal={setGoal}
+          countAssumptions={countAssumptions}
+          onCountAssumptions={setCountAssumptions}
+          league={league}
+          leagues={leagues}
+          onLeague={(l) => {
+            setLeague(l);
+            saveLeague(l);
+          }}
+        />
       )}
 
-      {latest.stats && <DeepAnalysis key={`a${latest.id}`} disabled={props.disabled} onRun={props.onAnalyse} />}
+      {latest.stats && (
+        <NextPassives
+          key={`p${latest.id}`}
+          mainSkill={latest.mainSkill}
+          goal={goal}
+          mode={mode}
+          disabled={props.disabled}
+          onRun={props.onPassives}
+        />
+      )}
+
+      {latest.stats && (
+        <ItemUpgrades
+          key={`u${latest.id}`}
+          goal={goal}
+          mode={mode}
+          league={league}
+          disabled={props.disabled}
+          onRun={props.onUpgrades}
+          onRareSearch={props.onRareSearch}
+        />
+      )}
+
+      {latest.stats && (
+        <DeepAnalysis key={`a${latest.id}`} mode={mode} league={league} disabled={props.disabled} onRun={props.onAnalyse} />
+      )}
 
       {latest.stats && (
         <TryItem
@@ -494,8 +553,67 @@ function TryItem(props: { level: number; disabled: boolean; onTry: (item: string
 
 const pct = (x: number) => `${x > 0 ? "+" : ""}${Math.round(x * 100)}%`;
 
-function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis> }) {
-  const [result, setResult] = useState<Analysis | null>(null);
+/** Goal, assumptions switch and league: shared by the passive, item and gem advice. */
+function AdviceSettings(props: {
+  goal: Goal;
+  onGoal: (g: Goal) => void;
+  countAssumptions: boolean;
+  onCountAssumptions: (on: boolean) => void;
+  league: string;
+  leagues: string[];
+  onLeague: (l: string) => void;
+}) {
+  const hint = GOALS.find((g) => g.id === props.goal)?.hint;
+  return (
+    <section className="panel">
+      <h3>Advice for</h3>
+      <div className="actions goal">
+        {GOALS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={g.id === props.goal ? "" : "secondary"}
+            onClick={() => props.onGoal(g.id)}
+            aria-pressed={g.id === props.goal}
+            title={g.hint}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted small">Ranked by {hint}.</p>
+      <label className="small check">
+        <input
+          type="checkbox"
+          checked={props.countAssumptions}
+          disabled={props.goal === "bossing"}
+          onChange={(e) => props.onCountAssumptions(e.target.checked)}
+        />{" "}
+        Count my situational assumptions (the "When In Combat" and "For Effective DPS" boxes ticked in Path of Building)
+      </label>
+      <label className="small league">
+        League for prices:{" "}
+        {props.leagues.length > 0 ? (
+          <select value={props.league} onChange={(e) => props.onLeague(e.target.value)}>
+            {props.leagues.map((l) => (
+              <option key={l}>{l}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            value={props.league}
+            onChange={(e) => props.onLeague(e.target.value)}
+            placeholder="League name (league list unavailable)"
+            aria-label="League"
+          />
+        )}
+      </label>
+    </section>
+  );
+}
+
+function DeepAnalysis(props: { mode: Mode; league: string; disabled: boolean; onRun: (mode: Mode) => Promise<Analysis> }) {
+  const [result, setResult] = useState<{ analysis: Analysis; mode: Mode; gems: GemPrices } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -503,7 +621,18 @@ function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis>
     setBusy(true);
     setError("");
     try {
-      setResult(await props.onRun());
+      const mode = props.mode;
+      const league = props.league;
+      const [analysis, gems] = await Promise.all([
+        props.onRun(mode),
+        league
+          ? loadGemPrices(league).then(
+              (g) => ({ ...g, league, error: "" }),
+              (e) => ({ gems: null, divine: null, league, error: message(e) }),
+            )
+          : Promise.resolve({ gems: null, divine: null, league, error: "No league chosen" }),
+      ]);
+      setResult({ analysis, mode, gems });
     } catch (e) {
       setError(message(e));
     } finally {
@@ -511,7 +640,7 @@ function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis>
     }
   }
 
-  const a = result;
+  const a = result?.analysis;
   const dps = (s: Stats) => s.CombinedDPS ?? 0;
   const ehp = (s: Stats) => s.TotalEHP ?? 0;
   return (
@@ -521,7 +650,7 @@ function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis>
         <>
           <p className="muted small">
             Recalculates your build without situational assumptions, against uber bosses, with each pantheon and
-            with other support gems. Takes up to a minute on a big build.
+            with other support gems (priced on poe.ninja). Takes up to a minute on a big build.
           </p>
           <div className="actions">
             <button type="button" onClick={run} disabled={props.disabled || busy}>
@@ -531,7 +660,7 @@ function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis>
         </>
       )}
       {error && <p className="error">{error}</p>}
-      {a && (
+      {a && result && (
         <>
           <table className="scenarios">
             <thead>
@@ -573,36 +702,71 @@ function DeepAnalysis(props: { disabled: boolean; onRun: () => Promise<Analysis>
               </ul>
             </details>
           )}
-          <Supports analysis={a} />
+          <Supports analysis={a} mode={result.mode} gems={result.gems} />
           <Pantheon title="Major god" group={a.pantheonMajor} ehp={ehp(a.configured)} />
           <Pantheon title="Minor god" group={a.pantheonMinor} ehp={ehp(a.configured)} />
+          <div className="actions">
+            <button type="button" className="link" onClick={run} disabled={props.disabled || busy}>
+              {busy ? "Analysing…" : result.mode !== props.mode ? "Analyse again for the advice settings above" : "Analyse again"}
+            </button>
+          </div>
         </>
       )}
     </section>
   );
 }
 
-function Supports({ analysis }: { analysis: Analysis }) {
+interface GemPrices {
+  gems: NinjaItemLine[] | null;
+  divine: number | null;
+  league: string;
+  error: string;
+}
+
+function Supports({ analysis, mode, gems }: { analysis: Analysis; mode: Mode; gems: GemPrices }) {
   if (!analysis.supports) return <p className="muted small">No support gems to rank for the main skill.</p>;
-  const advice = supportAdvice(analysis.supports);
+  const lines = gems.gems;
+  const advice = supportAdvice(analysis.supports, 5, lines ? (name, level) => gemPrice(lines, name, level) : undefined);
   return (
     <div>
       <h4>Support gems</h4>
+      <p className="muted small">Ranked {MODE_TEXT[mode]}.</p>
       {advice.better.length === 0 ? (
-        <p className="small">No support beats your current links.</p>
+        <p className="small">No support {lines ? "sold this league " : ""}beats your current links.</p>
       ) : (
         <ul className="changes">
           {advice.better.map((b) => (
             <li key={b.name} className="up">
               Replace {advice.replacing} with {b.name}: {pct(b.gain)} DPS
+              {b.price && (
+                <>
+                  {" "}
+                  for ~{formatPrice(b.price.chaos, gems.divine)}
+                  {b.price.note && <span className="muted"> ({b.price.note})</span>}
+                  {b.price.thin && <span className="muted"> (few listed)</span>}{" "}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => openLink(tradeSearchUrl(gems.league, gemQuery(b.name, b.level))).catch(() => {})}
+                  >
+                    Trade
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>
       )}
+      {advice.unobtainable.length > 0 && (
+        <p className="muted small">
+          Left out, nobody sells them in {gems.league} (no poe.ninja listing): {advice.unobtainable.join(", ")}.
+        </p>
+      )}
+      {!lines && <p className="muted small">Gem prices unavailable ({gems.error}); gems that no longer drop may be listed.</p>}
       <p className="muted small">
         What each current support is worth:{" "}
-        {advice.worth.map((w) => `${w.name} ${Math.round(w.loss * 100)}%`).join(" · ")}. Candidates at level 20,
-        quality 0.
+        {advice.worth.map((w) => `${w.name} ${Math.round(w.loss * 100)}%`).join(" · ")}. Candidates at their highest
+        normal level, quality 0.
       </p>
     </div>
   );
@@ -630,13 +794,13 @@ const KIND_LABEL: Record<PassiveAdvice["kind"], string> = {
   swap: "mastery",
 };
 
-const signed = (x: number) => `${x >= 0.0005 ? "+" : x <= -0.0005 ? "−" : ""}${Math.abs(Math.round(x * 1000) / 10)}%`;
 
 /** "+3.5% DPS per point · +7% DPS, +0.4% effective HP" (per point only when the path costs more than one). */
 function gainText(p: PassiveAdvice, goal: Goal): string {
   const totals = `${signed(p.dps)} DPS, ${signed(p.ehp)} effective HP`;
   if (p.points <= 1) return totals;
-  const perPoint = goal === "damage" ? "DPS per point" : goal === "defence" ? "effective HP per point" : "per point (DPS and EHP averaged)";
+  const perPoint =
+    goal === "damage" ? "DPS per point" : goal === "defence" ? "effective HP per point" : "per point (DPS and EHP averaged)";
   return `${signed(p.score)} ${perPoint} · ${totals}`;
 }
 
@@ -669,9 +833,15 @@ function PassiveItem({ p, goal, unit = "point" }: { p: PassiveAdvice; goal: Goal
   );
 }
 
-function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRun: () => Promise<PassiveResult> }) {
-  const [result, setResult] = useState<PassiveResult | null>(null);
-  const [goal, setGoal] = useState<Goal>("balanced");
+function NextPassives(props: {
+  mainSkill: string | null;
+  goal: Goal;
+  mode: Mode;
+  disabled: boolean;
+  onRun: (mode: Mode) => Promise<PassiveResult>;
+}) {
+  const { goal, mode } = props;
+  const [results, setResults] = useState<Partial<Record<Mode, PassiveResult>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -679,7 +849,8 @@ function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRu
     setBusy(true);
     setError("");
     try {
-      setResult(await props.onRun());
+      const r = await props.onRun(mode);
+      setResults((all) => ({ ...all, [mode]: r }));
     } catch (e) {
       setError(message(e));
     } finally {
@@ -687,30 +858,18 @@ function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRu
     }
   }
 
+  const result = results[mode];
   const plan = result && planPassives(result, goal);
   const ascFree = plan ? ASCENDANCY_POINTS - plan.ascendancyUsed : 0;
   return (
     <section className="panel">
-      <h3>Next passives</h3>
-      <div className="actions goal">
-        {GOALS.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            className={g.id === goal ? "" : "secondary"}
-            onClick={() => setGoal(g.id)}
-            aria-pressed={g.id === goal}
-          >
-            {g.label}
-          </button>
-        ))}
-      </div>
+      <h3>Next passives · {goalLabel(goal)}</h3>
       {!plan && (
         <>
           <p className="muted small">
             Calculates every passive next to your tree, and every notable and keystone up to 4 points away (the path
-            included), with Path of Building. Balanced never suggests a passive that lowers a resistance or costs
-            much life. Takes up to a minute on a big build.
+            included), with Path of Building, {MODE_TEXT[mode]}. Balanced and Bossing never suggest a passive that
+            lowers a resistance or costs much life. Takes up to a minute on a big build.
           </p>
           <div className="actions">
             <button type="button" onClick={run} disabled={props.disabled || busy}>
@@ -724,7 +883,7 @@ function NextPassives(props: { mainSkill: string | null; disabled: boolean; onRu
         <>
           <p className="muted small">
             {plan.used} of {plan.available} points spent (level {result.level}, every quest done)
-            {plan.available > plan.used ? ` · ${plan.available - plan.used} to spend` : ""}.
+            {plan.available > plan.used ? ` · ${plan.available - plan.used} to spend` : ""}. Calculated {MODE_TEXT[mode]}.
           </p>
           {plan.noDamage && goal !== "defence" && (
             <p className="small">
