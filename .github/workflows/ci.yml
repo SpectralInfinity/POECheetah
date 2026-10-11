@@ -21,6 +21,8 @@ jobs:
   test:
     name: Tests (Linux)
     runs-on: ubuntu-latest
+    outputs:
+      pob-key: ${{ steps.pob-key.outputs.key }}
     steps:
       - uses: actions/checkout@v5
 
@@ -43,11 +45,17 @@ jobs:
       # Git on the Windows runner fails to fetch PoB's files on demand, so the
       # Windows job restores this cache. Caches don't count toward the
       # account's artifact storage (500 MB on a free plan); artifacts do.
+      # Computed here and handed to the Windows job: hashFiles() there sees
+      # CRLF checkouts and would give another key.
+      - name: Path of Building cache key
+        id: pob-key
+        run: echo "key=pob-$(tr -d '[:space:]' < src-tauri/pob-version.txt)-$(sha256sum scripts/fetch-pob.sh | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
       - name: Cache Path of Building
         uses: actions/cache@v4
         with:
           path: src-tauri/pob
-          key: pob-${{ hashFiles('src-tauri/pob-version.txt', 'scripts/fetch-pob.sh') }}
+          key: ${{ steps.pob-key.outputs.key }}
           enableCrossOsArchive: true
 
       - name: Fetch Path of Building
@@ -89,7 +97,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: src-tauri/pob
-          key: pob-${{ hashFiles('src-tauri/pob-version.txt', 'scripts/fetch-pob.sh') }}
+          key: ${{ needs.test.outputs.pob-key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
