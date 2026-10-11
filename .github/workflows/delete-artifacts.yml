@@ -1,0 +1,27 @@
+# Frees the account's artifact storage (500 MB on a free plan): deletes every
+# build artifact of this repository. Releases are unaffected. Run it by hand
+# from the Actions tab ("Delete artifacts" → Run workflow).
+name: Delete artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          ids=$(gh api --paginate "repos/$REPO/actions/artifacts" -q '.artifacts[].id')
+          count=0
+          for id in $ids; do
+            gh api -X DELETE "repos/$REPO/actions/artifacts/$id"
+            count=$((count + 1))
+          done
+          echo "Deleted $count artifacts. GitHub recounts storage every 6-12 hours."
