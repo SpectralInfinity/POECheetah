@@ -68,7 +68,7 @@ fn tries_an_item_in_every_slot_it_fits() {
     let Some(dir) = pob_dir() else { return };
     let engine = Engine::start(&dir).expect("engine starts");
     let xml = include_str!("fixtures/fireball-witch.xml");
-    let trial = engine.try_item(xml, RING).expect("item tried");
+    let trial = engine.try_item(xml, RING, Mode::Configured).expect("item tried");
 
     assert_eq!(trial.item, "Test Loop, Gold Ring");
     let slots: Vec<_> = trial.slots.iter().map(|s| s.slot.as_str()).collect();
@@ -79,6 +79,7 @@ fn tries_an_item_in_every_slot_it_fits() {
         assert_close(&slot.stats, "FireResist", -30.0);
     }
     assert_close(&trial.before, "Life", 1125.0);
+    assert_eq!(trial.required_level, Some(20.0), "Gold Ring's base level");
 }
 
 #[test]
@@ -86,7 +87,7 @@ fn reports_text_that_is_not_an_item() {
     let Some(dir) = pob_dir() else { return };
     let engine = Engine::start(&dir).expect("engine starts");
     let xml = include_str!("fixtures/fireball-witch.xml");
-    let err = engine.try_item(xml, "hello").unwrap_err();
+    let err = engine.try_item(xml, "hello", Mode::Configured).unwrap_err();
     assert!(err.contains("couldn't read that item"), "{err}");
 }
 
@@ -185,6 +186,9 @@ fn modes_clear_assumptions_and_leave_the_build_unchanged() {
     assert_eq!(Some(configured), before.stats.get("CombinedDPS").copied());
     assert!(conservative < configured, "no shocked enemy: {conservative} < {configured}");
     assert!(boss < conservative, "uber boss: {boss} < {conservative}");
+    let trial = engine.try_item(&xml, RING, Mode::Boss).expect("item tried");
+    assert_eq!(trial.before["CombinedDPS"], boss, "the item check calculates in the mode asked");
+    assert_eq!(trial.slots.len(), 2);
     let analysis = engine.analyse(&xml, Mode::Boss).expect("analysed");
     assert_eq!(analysis["cleared"], serde_json::json!(["Is the enemy Shocked?", "Effect of Shock: 50"]));
     assert_eq!(analysis["mode"], "boss");

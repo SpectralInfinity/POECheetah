@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
 import type { Mode } from "../core/goals";
+import type { ItemTrial } from "../core/itemCheck";
 import type { PassiveCandidate, PassiveResult } from "../core/passives";
 import type { UniqueTrial, UpgradeResult } from "../core/upgrades";
 import type { Stats } from "../core/stats";
@@ -12,28 +13,16 @@ export interface PobResult {
   messages: string[];
 }
 
-export interface SlotTrial {
-  slot: string;
-  replaces: string | null;
-  stats: Stats;
-}
-
-export interface ItemTrial {
-  item: string;
-  before: Stats;
-  slots: SlotTrial[];
-}
-
 /** Calculates build XML with the Path of Building engine in the Rust shell. */
 export async function calculate(xml: string): Promise<PobResult> {
   if (!isTauri()) return previewResult(xml);
   return invoke<PobResult>("pob_calculate", { xml });
 }
 
-/** Calculates the build with an item (copied item text) in each slot it fits. */
-export async function tryItem(xml: string, item: string): Promise<ItemTrial> {
+/** Calculates the build with an item (copied item text) in each slot it fits, in `mode`. */
+export async function tryItem(xml: string, item: string, mode: Mode): Promise<ItemTrial> {
   if (!isTauri()) return previewTrial(xml, item);
-  return invoke<ItemTrial>("pob_try_item", { xml, item });
+  return invoke<ItemTrial>("pob_try_item", { xml, item, mode });
 }
 
 /** Honest DPS, boss check, pantheon and support gem ranking in `mode` (about 30 s on a big build). */
@@ -110,11 +99,17 @@ function previewTrial(xml: string, item: string): ItemTrial {
   const before = previewResult(xml).stats;
   if (!/Rarity:/i.test(item)) throw new Error("Path of Building couldn't read that item. Copy it with Ctrl+C in game or from the trade site.");
   const name = item.split(/\r?\n/).filter((l) => l.trim() && !/^(Item Class|Rarity):/i.test(l))[0] ?? "Item";
-  const after = { ...before, Life: before.Life + 88, Int: before.Int + 20, CombinedDPS: before.CombinedDPS * 0.75 };
+  // Sample numbers: rings gain, body armours trade the physical max hit for effective HP (as Kintsugi does).
+  const body = /Body Armour|Leather|Plate|Robe|Vest|Coat/i.test(item);
+  const after = body
+    ? { ...before, TotalEHP: before.TotalEHP * 1.32, PhysicalMaximumHitTaken: before.PhysicalMaximumHitTaken * 0.73 }
+    : { ...before, Life: before.Life + 88, Int: before.Int + 20, CombinedDPS: before.CombinedDPS * 1.06 };
+  const slots = body ? ["Body Armour"] : ["Ring 1", "Ring 2"];
   return {
     item: name,
+    requiredLevel: Number(item.match(/^Level:\s*(\d+)/m)?.[1] ?? 1),
     before,
-    slots: ["Ring 1", "Ring 2"].map((slot) => ({ slot, replaces: "Betrayal's Sting, Steel Ring", stats: after })),
+    slots: slots.map((slot) => ({ slot, replaces: body ? "Cloak of Flame, Scholar's Robe" : "Betrayal's Sting, Steel Ring", stats: after })),
   };
 }
 

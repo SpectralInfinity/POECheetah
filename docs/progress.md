@@ -21,7 +21,9 @@
 - [x] 5. Item upgrade advisor; Bossing goal; priced support gems; flasks.
       (Built 2026-10-10 as v0.6.0; tick once the top buys on your build
       make sense and the poe.ninja prices load in the installed app.)
-- [ ] 6. Item check from the game clipboard.
+- [x] 6. Item check from the game clipboard; max-hit drawback check.
+      (Built 2026-10-12 as v0.7.0; tick once copying an item in game shows
+      the verdict in the pop-out and the max-hit flags make sense.)
 - [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
 - [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
@@ -143,6 +145,30 @@
   life flasks' mods at nothing and counts flasks as always up; the UI says so.
   Not done: sampling rare prices from the trade API; a combined best
   prefix + suffix calculation (summed from each alone).
+
+- **6:** Max-hit drawback: `drawbacks()` (`src/core/passives.ts`) adds any
+  of the five max hits falling by more than 5% ("Physical max hit 32k →
+  23k"), so passives, item upgrades and the item check leave them out for
+  Balanced/Bossing and flag them for Damage/Defence. Item check:
+  `src/core/itemCheck.ts` (item text header, what counts as equipment,
+  verdict per goal) and `src/ui/ItemCheck.tsx` (panel, clipboard watch,
+  pop-out window `item-check`, `index.html#item-check`). Engine `tryItem`
+  takes a mode and returns PoB's level requirement (PoB trusts the copied
+  "Level:" only for items without sockets; else the base's). Clipboard via
+  `tauri-plugin-clipboard-manager`, read only (`clipboard-manager:allow-read-text`).
+  Goal and the assumptions switch are now saved, so the pop-out uses them.
+  PoB reads the game's advanced copy (Ctrl+Alt+C, `{ Prefix Modifier … }`
+  lines) too. Checked on the Reliquarian with made-up copies of real
+  uniques: Kintsugi (config as set) DPS −15%, EHP −29%, physical max hit
+  32k → 11k (the prediction test's roll gave +32% EHP; same conversion
+  loss); bossing: EHP +11% but physical max hit 25k → 16k → "Not for
+  Bossing". Replica Mistwall: EHP −19%, cold/lightning max hit 48k → 21k.
+  A rare ring (advanced copy) +125 life but DPS −24% (loses Betrayal's
+  Sting): upgrade only for Defence, with the cost shown. Luminary: judged by
+  effective HP (no damage), the same ring −8%. Not checked here: the
+  Windows clipboard and the pop-out window itself (no Windows in this
+  environment; the shell compiles on Linux).
+  Dev tool: `cargo run --release --example stats -- build.xml --item item.txt --mode boss [--json out.json]`.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

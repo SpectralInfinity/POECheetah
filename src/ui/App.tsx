@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { APP_BUILD, APP_VERSION } from "../buildInfo";
 import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
 import { change, pantheonAdvice, supportAdvice, type Analysis } from "../core/analysis";
-import { checkBuild, diffFindings, type Finding } from "../core/health";
+import { checkBuild, type Finding } from "../core/health";
 import { GOALS, goalLabel, modeFor, type Goal, type Mode } from "../core/goals";
 import { formatPrice, gemPrice, gemQuery, tradeSearchUrl, type NinjaItemLine } from "../core/market";
 import { ASCENDANCY_POINTS, planPassives, type PassiveAdvice, type PassiveResult } from "../core/passives";
@@ -19,7 +19,10 @@ import {
 import { isTauri, openDb } from "../data/db";
 import { MODE_TEXT, message, signed } from "./format";
 import { loadGemPrices, loadLeagues, openLink, savedLeague, saveLeague } from "./market";
-import { analyse, calculate, passives, rareSearch, tryItem, upgrades, type ItemTrial } from "./pob";
+import { analyse, calculate, passives, rareSearch, upgrades } from "./pob";
+import { ItemCheckPanel } from "./ItemCheck";
+import { FindingItem, StatChangeList } from "./parts";
+import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
 import { ItemUpgrades, type RareSearchFn } from "./Upgrades";
 
 
@@ -178,7 +181,6 @@ export function App() {
             disabled={busy !== ""}
             onUpdate={addVersion}
             onRecalculate={recalculate}
-            onTryItem={async (item) => tryItem(await decodeBuildCode(active.latest.code), item)}
             onAnalyse={async (mode) => analyse(await decodeBuildCode(active.latest.code), mode)}
             onPassives={async (mode) => passives(await decodeBuildCode(active.latest.code), mode)}
             onUpgrades={async (mode, names) => upgrades(await decodeBuildCode(active.latest.code), mode, names)}
@@ -234,7 +236,6 @@ function BuildView(props: {
   disabled: boolean;
   onUpdate: (code: string) => void;
   onRecalculate: (v: BuildVersion) => void;
-  onTryItem: (item: string) => Promise<ItemTrial>;
   onAnalyse: (mode: Mode) => Promise<Analysis>;
   onPassives: (mode: Mode) => Promise<PassiveResult>;
   onUpgrades: (mode: Mode, uniques: string[]) => Promise<UpgradeResult>;
@@ -248,8 +249,8 @@ function BuildView(props: {
   const [code, setCode] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(build.name);
-  const [goal, setGoal] = useState<Goal>("balanced");
-  const [countAssumptions, setCountAssumptions] = useState(false);
+  const [goal, setGoal] = useState<Goal>(savedGoal);
+  const [countAssumptions, setCountAssumptions] = useState(savedCountAssumptions);
   const [league, setLeague] = useState(savedLeague() ?? "");
   const [leagues, setLeagues] = useState<string[]>([]);
   const mode = modeFor(goal, countAssumptions);
@@ -319,9 +320,15 @@ function BuildView(props: {
       {latest.stats && (
         <AdviceSettings
           goal={goal}
-          onGoal={setGoal}
+          onGoal={(g) => {
+            setGoal(g);
+            saveGoal(g);
+          }}
           countAssumptions={countAssumptions}
-          onCountAssumptions={setCountAssumptions}
+          onCountAssumptions={(on) => {
+            setCountAssumptions(on);
+            saveCountAssumptions(on);
+          }}
           league={league}
           leagues={leagues}
           onLeague={(l) => {
@@ -359,11 +366,9 @@ function BuildView(props: {
       )}
 
       {latest.stats && (
-        <TryItem
-          level={latest.summary.level}
+        <ItemCheckPanel
           disabled={props.disabled}
-          onTry={props.onTryItem}
-          key={latest.id}
+          ctx={{ buildName: build.name, code: latest.code, level: latest.summary.level, goal, mode, league }}
         />
       )}
 
@@ -432,25 +437,9 @@ function Changes({ before, after, since }: { before: Stats; after: Stats; since:
       {changes.length === 0 ? (
         <p className="muted">No headline stat changed.</p>
       ) : (
-        <ul className="changes">
-          {changes.map(({ def, before: a, after: b }) => (
-            <li key={def.key} className={b > a ? "up" : "down"}>
-              {def.label}: {formatStat(def.kind, a)} → {formatStat(def.kind, b)}
-              {def.kind === "number" && a !== 0 && ` (${b > a ? "+" : ""}${Math.round(((b - a) / Math.abs(a)) * 100)}%)`}
-            </li>
-          ))}
-        </ul>
+        <StatChangeList changes={changes} />
       )}
     </section>
-  );
-}
-
-function FindingItem({ finding }: { finding: Finding }) {
-  return (
-    <li className={finding.severity}>
-      <strong>{finding.title}</strong>
-      <span className="muted small"> {finding.detail}</span>
-    </li>
   );
 }
 
@@ -467,86 +456,6 @@ function Health({ findings }: { findings: Finding[] }) {
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-function TryItem(props: { level: number; disabled: boolean; onTry: (item: string) => Promise<ItemTrial> }) {
-  const [text, setText] = useState("");
-  const [trial, setTrial] = useState<ItemTrial | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function run() {
-    setBusy(true);
-    setError("");
-    setTrial(null);
-    try {
-      setTrial(await props.onTry(text));
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const beforeFindings = trial ? checkBuild(trial.before, props.level) : [];
-  return (
-    <section className="panel">
-      <h3>Try an item</h3>
-      <p className="muted small">
-        Paste an item: hover it in game and press Ctrl+C, or copy it from the trade site.
-      </p>
-      <textarea
-        rows={5}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        spellCheck={false}
-        aria-label="Item text"
-      />
-      <div className="actions">
-        <button type="button" onClick={run} disabled={props.disabled || busy || !text.trim()}>
-          {busy ? "Calculating…" : "Try it"}
-        </button>
-      </div>
-      {error && <p className="error">{error}</p>}
-      {trial && trial.slots.length === 0 && <p className="muted">{trial.item} doesn't fit any slot of this build.</p>}
-      {trial?.slots.map((slot) => {
-        const changes = diffStats(trial.before, slot.stats);
-        const { added, removed } = diffFindings(beforeFindings, checkBuild(slot.stats, props.level));
-        return (
-          <div key={slot.slot} className="trial">
-            <h4>
-              {slot.slot}
-              <span className="muted small"> {slot.replaces ? `replacing ${slot.replaces}` : "empty slot"}</span>
-            </h4>
-            {changes.length === 0 ? (
-              <p className="muted small">No headline stat changes.</p>
-            ) : (
-              <ul className="changes">
-                {changes.map(({ def, before: a, after: b }) => (
-                  <li key={def.key} className={b > a ? "up" : "down"}>
-                    {def.label}: {formatStat(def.kind, a)} → {formatStat(def.kind, b)}
-                    {def.kind === "number" && a !== 0 && ` (${b > a ? "+" : ""}${Math.round(((b - a) / Math.abs(a)) * 100)}%)`}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {(added.length > 0 || removed.length > 0) && (
-              <ul className="findings">
-                {added.map((f) => (
-                  <FindingItem key={`+${f.id}`} finding={{ ...f, title: `New: ${f.title}` }} />
-                ))}
-                {removed.map((f) => (
-                  <li key={`-${f.id}`} className="fixed">
-                    <strong>Fixes: {f.title}</strong>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })}
     </section>
   );
 }
