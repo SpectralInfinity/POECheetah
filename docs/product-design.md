@@ -370,6 +370,18 @@ Reliquarians: 1.3–3.5M) added:
     - **Suffixes that must move along**: shock immunity when
       cold/lightning resists are negative; ignite and bleed immunity.
     - **Quality**: 28% vs 24–26% life flasks +1.9% for PCOC.
+    - **Enchantments** (one per flask; PoB's list is
+      `Data/EnchantmentFlask.lua`): Enkindling (stat, "Gains no Charges
+      during Effect") or Instilling (automatic use). PoB counts flasks as
+      always on, so it overrates Enkindling's "60–70% increased effect":
+      on the test build's Sulphur Flask +17.2% in PoB vs +11.3% with any
+      Instilling, but the flask can't refill while active, so it pays
+      only above about two-thirds uptime (17.2% × uptime vs 11.3%). Show
+      the break-even uptime next to it, and default to Instilling: "Used
+      when Charges reach full", or "Reused at the end of this Flask's
+      effect" when the build gains charges fast enough (e.g. flask
+      charges on crit). The same hidden cost as speed flasks draining
+      life flask charges: PoB's number leaves out uptime.
 19. **Same skill, other ascendancies**: from the ladder (item 1), each
     ascendancy's typical gear and its honest numbers side by side (uber DPS,
     max hits, block, cost of the core uniques: Svalinn ~33 div), so "should
