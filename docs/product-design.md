@@ -125,6 +125,16 @@ and the league are shared by the passive, item and gem advice.
 - The player presses the keys; the app only reads the clipboard (§4).
 - First version: paste the item text into the app by hand.
 
+**Max-hit drawback check (owner's request, 2026-10-12, for session 6):** the
+drawback check (`drawbacks()` in `src/core/passives.ts`, used by passives, item
+upgrades and the item check) only looks at resistances, life, effective HP and
+DPS. A prediction test on a PCOC Reliquarian showed it missing real costs:
+Kintsugi (+32% EHP, "no drawback") cut the physical max hit 32k → 23k by
+replacing Cloak of Flame's conversion; Replica Mistwall (+11% EHP) cut it to
+19k. Add: any of the five max hits (physical, fire, cold, lightning, chaos)
+dropping by more than 5% is a drawback ("Physical max hit 32k → 23k"), so
+Balanced and Bossing leave such items out and Damage/Defence flag them.
+
 ### 3.4 Run tracker (game log)
 
 - Reads `logs/Client.txt` in the game folder (standalone and Steam installs
@@ -360,7 +370,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 3 | Honest DPS and boss check; rank support gems, pantheon, flasks (§3.9) | Configured vs conservative vs boss DPS side by side; best support swap found |
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
-| 6 | Item check from the game clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
+| 6 | Item check from the game clipboard (§3.3); max-hit drawback check (below) | Copy an item in game → upgrade or not, for your build; an item that cuts a max hit is flagged |
 | 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
