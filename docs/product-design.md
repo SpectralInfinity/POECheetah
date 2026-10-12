@@ -335,6 +335,14 @@ Reliquarians: 1.3–3.5M) added:
     model them; 7 of 20 PCOC Reliquarians run it, 0 of 515 Pathfinders).
     Say "turn this on in PoB" when the build has the source but the config
     is off, and "not true on a boss" when it hasn't.
+    Stances too: Flesh and Stone switches stance itself (no Blood and Sand
+    needed; 0% of PCOC builds run it). Sand Stance is defence only (test
+    build: effective HP 72k → 90k, every max hit +24%); Blood Stance only
+    adds physical damage taken by enemies, so flag Blood Stance on a build
+    whose damage isn't physical hits (poison, DoT). When suggesting an
+    aura instead (Grace, Determination), check it fits the reservation
+    (both left the test build at −82 mana) and compare max hits, not
+    only effective HP.
 16. **What an item carries before you replace it**: curses granted (Asenath's
     Despair and Temporal Chains), socketed gem levels (+2 auras, +2
     projectile gems), granted skills; shown next to the PoB result, so a
@@ -389,7 +397,12 @@ Reliquarians: 1.3–3.5M) added:
 20. **PoB limits flagged next to the numbers**: the damage over time cap
     (~35.8M per type; every top Snakebite Pathfinder sits at it, so their
     real DPS is higher), and things PoB doesn't model (Writhing Worms,
-    flask charge sustain, mercenaries), so a comparison isn't read as exact.
+    flask charge sustain, mercenaries, Aspect of Arakaali: PoB
+    has no data for it, so it shows 0%), so a comparison isn't read as
+    exact. Also explain PoB results that look wrong but aren't: "poisons
+    deal damage X% faster" adds 0% to PoB's DPS (the same total over a
+    shorter time, fewer stacks); it only makes damage arrive sooner, so
+    it's the implicit to trade away first.
 
 ## 4. Data sources and game rules
 
