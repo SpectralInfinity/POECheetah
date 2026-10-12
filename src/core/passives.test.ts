@@ -56,6 +56,31 @@ describe("passive advisor", () => {
     expect(drawbacks(before, { ...before, ChaosResist: -10 })).toEqual(["Chaos res 20% → -10%"]);
   });
 
+  it("counts a max hit falling by more than 5% as a drawback, even when effective HP rises", () => {
+    const hits = { PhysicalMaximumHitTaken: 31_591, FireMaximumHitTaken: 47_845, ChaosMaximumHitTaken: 8_100 };
+    const base = { ...before, ...hits };
+    // Kintsugi on the PCOC Reliquarian: +32% EHP, but Cloak of Flame's conversion is gone.
+    const kintsugi = { ...base, TotalEHP: 13_200, PhysicalMaximumHitTaken: 23_400 };
+    expect(drawbacks(base, kintsugi)).toEqual(["Physical max hit 32k → 23k"]);
+    expect(drawbacks(base, { ...base, ChaosMaximumHitTaken: 7_500, FireMaximumHitTaken: 46_000 })).toEqual([
+      "Chaos max hit 8.1k → 7.5k",
+    ]);
+    expect(drawbacks(base, { ...base, PhysicalMaximumHitTaken: 30_500 })).toEqual([]);
+    expect(drawbacks(before, { ...before, PhysicalMaximumHitTaken: 500 })).toEqual([]);
+  });
+
+  it("leaves out a passive that cuts a max hit for Balanced and Bossing, and flags it otherwise", () => {
+    const base = { ...before, PhysicalMaximumHitTaken: 30_000 };
+    const r: PassiveResult = {
+      ...result([]),
+      before: base,
+      candidates: [{ ...node({ name: "Conversion", stats: {} }), stats: { ...base, TotalEHP: 11_000, PhysicalMaximumHitTaken: 20_000 } }],
+    };
+    expect(planPassives(r, "balanced").passives).toEqual([]);
+    expect(planPassives(r, "bossing").passives).toEqual([]);
+    expect(planPassives(r, "defence").passives[0].drawbacks).toEqual(["Physical max hit 30k → 20k"]);
+  });
+
   it("keeps a mastery's best effect, leaves out what gains nothing, and separates ascendancy and swaps", () => {
     const mastery = [
       node({ kind: "mastery", name: "Life Mastery", stats: { TotalEHP: 10_300 } }),
