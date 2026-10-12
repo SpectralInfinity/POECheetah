@@ -281,6 +281,34 @@ Feared, 70 div?"); each is a feature the app could do itself:
 9. **Guides**: read a guide's PoB link (pobb.in, Maxroll planner) rather
    than its video; YouTube is only useful for the link in the description.
 
+Two PCOC Reliquarians compared the same day (3.7M vs 5.4M in PoB; the 5.0M
+poe.ninja shows is poison alone) added these checks for session 7's build
+comparison (item 6):
+
+10. **Explain a DPS gap by swapping pieces**: put the other build's items in
+    one slot at a time (and its tree, gems and config as wholes) into my
+    build, and knock its pieces out of it one at a time; rank what each is
+    worth. Swap coupled slots together (amulet + gloves carried the curses;
+    all of the other build's gear made mine worse, −5%). Found: a level 20
+    Despair gem instead of the gloves' level 1 (+21%), a body armour
+    corrupted with +2 to socketed projectile gems (+18%).
+11. **Name PoB's damage factors side by side**: damage per poison, stacks,
+    duration, enemy damage-taken multiplier (`PoisonEffMult`), average hit,
+    crit, speed, curse limit; say which one makes the gap.
+12. **Compare in the skill part the build plays**: PCOC's "Life" part (life
+    flask charges) roughly doubles DPS over "No Flask"; compare both builds
+    in the same part.
+13. **Flask checks**: PoB counts only the best life flask's recovery for
+    PCOC (`LifeFlaskRecovery` is a max): a second or third life flask adds
+    0% in PoB, only charge sustain it doesn't model, so say that rather
+    than rank it. Try utility flasks from the other build in each flask
+    slot (a Silver Flask instead of a mana flask: +12.5%) and flask quality
+    (28% vs 24–26%: +1.9%).
+14. **Which build for a named fight**: both builds in boss mode (uber DPS,
+    effective HP, max hit per damage type) side by side, with a verdict
+    (with item 5's thresholds when known). A build that kills 13% slower
+    with 15–40% higher max hits wins The Feared.
+
 ## 4. Data sources and game rules
 
 GGG's rule of thumb for third-party tools:
@@ -371,7 +399,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3); max-hit drawback check (below) | Copy an item in game → upgrade or not, for your build; an item that cuts a max hit is flagged |
-| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
+| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first, with the DPS gap explained piece by piece and a verdict for a named fight (§3.12 items 10–14) |
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
