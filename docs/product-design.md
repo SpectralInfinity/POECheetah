@@ -403,6 +403,26 @@ Reliquarians: 1.3–3.5M) added:
     deal damage X% faster" adds 0% to PoB's DPS (the same total over a
     shorter time, fewer stacks); it only makes damage arrive sooner, so
     it's the implicit to trade away first.
+21. **Mana budget**: unreserved mana, cost per use, and mana per second
+    spent vs recovered (regeneration, leech, mana on hit) from PoB's
+    output (`ManaUnreserved`, `ManaCost`, `ManaPerSecondCost`,
+    `ManaRegenRecovery`, `ManaLeechRate`, `ManaOnHitRate`). Warn when the
+    pool covers only a few uses (test build: 77 mana = 2 throws), since
+    sustain from leech stops between packs and at the start of a fight.
+    For each reservation, show its mana and its worth if switched off (DPS,
+    effective HP, max hits), so the cheapest one to drop is clear (test
+    build: Herald of Agony +180 mana for −10% DPS; Malevolence +275 for
+    −26%; Vaal Impurity of Fire +221 for −36% effective HP). Value
+    conditional buffs with their condition on and off: Arctic Armour is 0%
+    unless "stationary" is ticked, and +22% effective HP, +25% physical
+    max hit while standing still (bosses). Before suggesting an aura,
+    aspect or Arrogance, check it fits: every aspect (Spider, Cat, Avian,
+    Crab) reserves 25% of mana; Arrogance frees mana but reserves life
+    (test build: effective HP −44%). Also explain mana cost changes from
+    gem levels: PCOC costs a flat 10 at levels 20–23, so "+2 to socketed
+    projectile gems" doesn't raise it; the cost comes from the supports'
+    multipliers. Removing a mana flask (item 18) counts against this
+    budget.
 
 ## 4. Data sources and game rules
 
@@ -494,7 +514,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3); max-hit drawback check (below) | Copy an item in game → upgrade or not, for your build; an item that cuts a max hit is flagged |
-| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first, with the DPS gap explained piece by piece and a verdict for a named fight; charge and condition audit, what an item carries, flask set planner (§3.12 items 10–16, 18, 20) |
+| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first, with the DPS gap explained piece by piece and a verdict for a named fight; charge and condition audit, what an item carries, flask set planner, mana budget (§3.12 items 10–16, 18, 20, 21) |
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4, 17, 19) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
