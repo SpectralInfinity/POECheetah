@@ -221,6 +221,56 @@ show what the patch changed for each.
   User-Agent; check its terms when building. If that isn't allowed or
   breaks, fall back to the user pasting poe.ninja character links/codes.
 
+**poe.ninja's build data (checked 2026-10-12, undocumented; may change):**
+- League snapshot: `https://poe.ninja/poe1/api/data/index-state` → `snapshotVersions[]`
+  (`url`, `type` = `exp`, `version`).
+- Ladder aggregate: `GET /poe1/api/builds/{version}/search?overview={url}&type=exp&class=Luminary`
+  (`&sort=dps` / `ehp` changes the top 100 rows). Protobuf, no published
+  schema: field 1 = total characters; field 2 = dimensions (`items`,
+  `guardianitems`, `mercenaryclass`, `mercenaryitems`, `allgems`,
+  `keypassives`, `anointed`, …) as `{name, entries[{index, count}]}`; field 6 =
+  per-dictionary hashes; field 12 = the 100 listed rows (name, account,
+  level, EHP, DPS columns). A level filter wasn't found: filter rows client-side.
+- Names: `GET /poe1/api/builds/dictionary/{hash}` → "NDIC" v2 binary: 36-byte
+  header (count at byte 12, sparse-index size at 28), 8 bytes per index entry,
+  one length byte per name, then the names. A second hash per type ("NOVL")
+  isn't needed.
+- One character: `GET /poe1/api/builds/{version}/character?account=&name=&overview=&type=exp`
+  → JSON with `pathOfBuildingExport` (a PoB code), `items`, `jewels`,
+  `flasks`, `guardianItems`, `mercenary` (`build` = class, `level`, `items`),
+  `keyStones`, `skills`.
+- Decoder scripts used for the research are summarised in `docs/progress.md`
+  (2026-10-12); the app version belongs in session 7b.
+
+### 3.12 Ideas from the 2026-10-12 ladder research (owner's request)
+
+Done by hand in a chat ("what do I need for a Luminary that clears The
+Feared, 70 div?"); each is a feature the app could do itself:
+
+1. **Ladder snapshot for a class/ascendancy** (session 7b): share of players
+   per item, mercenary class, mercenary item, Animate Guardian item, gem,
+   keystone, anoint; level cap and sort (DPS / EHP) as filters.
+2. **Pull top ladder characters and calculate them honestly**: their PoB
+   codes through the engine with session 3's settings (configured,
+   conservative, uber) and max hits, side by side. Showed that ladder DPS can
+   be mostly assumptions (one Luminary: 265M configured, 80M against an uber).
+3. **Gear cost of any build**: price every unique of a PoB code on
+   poe.ninja (rares: trade search link); lower bound when a variant is
+   unknown (e.g. Mageblood flask count).
+4. **Budget build finder**: "class, goal, budget N div" → ladder characters
+   whose priced gear fits, ranked by uber DPS and lowest max hit.
+5. **Content readiness**: a checklist for a named fight (e.g. The Feared,
+   uber pinnacles) from the boss-mode numbers: uber DPS, max hit per damage
+   type, resists, block / suppression. Thresholds need research per fight.
+6. **Compare my build to a ladder build** (session 7): what to change first,
+   priced.
+7. **Mercenary from the ladder** (session 10): the class and items that
+   players of the same build use, since PoB can't calculate mercenaries.
+8. **Foulborn uniques**: price them by mutated mod and try them with PoB's
+   `foulbornMap` (skipped in v0.6.0; 556 listings in Allflame).
+9. **Guides**: read a guide's PoB link (pobb.in, Maxroll planner) rather
+   than its video; YouTube is only useful for the link in the description.
+
 ## 4. Data sources and game rules
 
 GGG's rule of thumb for third-party tools:
@@ -312,11 +362,11 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3) | Copy an item in game → upgrade or not, for your build |
 | 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first |
-| 7b | Meta comparison with poe.ninja (§3.11) | For your build: popular items/passives you lack, ranked by real gain |
+| 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
-| later | Patch impact (§3.10); PoE2 via PoB's PoE2 version; Claude explanations | — |
+| later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
 
