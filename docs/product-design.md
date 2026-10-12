@@ -345,10 +345,31 @@ Reliquarians: 1.3–3.5M) added:
     corrupted with +2 projectile gems +18%), and say which variant to buy.
     Needs prices per variant (rare/corrupted: trade search link).
 18. **Flask set planner**: rank the whole flask set, not one flask at a
-    time: which slot is nearly free (a second life flask: +0.6% for PCOC),
-    what to put there (Silver Flask +12.5%, Writhing Jar for on-kill
-    charges), and which immunity suffix must move along (shock immunity
-    when cold/lightning resists are negative).
+    time, and say what each flask is for (damage, defence, an immunity,
+    charge sustain) so nothing needed is swapped out:
+    - **Life flask count is sustain, not damage.** PoB counts only the best
+      life flask (a second adds +0.6% for PCOC), but skills that use life
+      flask charges (PCOC "can consume charges from a Life flask") need
+      several to keep going, and PoB doesn't model charges. Keep the
+      ladder's count for the same skill and ascendancy: all 6 PCOC
+      Reliquarians run 2–4 life flasks; 4 of 6 Snakebite Pathfinders run
+      one (their ascendancy refills charges). Never offer to replace a
+      life flask below that count.
+    - **Which slot is free**: the flask the build needs least (the test
+      build's mana flask), with what it gave (mana sustain, ignite
+      immunity) shown as the cost.
+    - **What to put there**, ranked: Silver +11.8% vs Sulphur +11.3% with
+      25% increased effect (+9.4% / +9.1% plain). Near-ties are broken by
+      side effects PoB doesn't count: speed flasks (Silver, Onslaught)
+      make a charge-using skill throw more often and drain life flasks
+      faster; flat damage (Sulphur) doesn't. Say so rather than rank by
+      PoB alone.
+    - **Per content**: a maps set and a boss set when they differ (Sulphur
+      in maps; The Writhing Jar against a single boss when on-kill charges
+      matter, item 15).
+    - **Suffixes that must move along**: shock immunity when
+      cold/lightning resists are negative; ignite and bleed immunity.
+    - **Quality**: 28% vs 24–26% life flasks +1.9% for PCOC.
 19. **Same skill, other ascendancies**: from the ladder (item 1), each
     ascendancy's typical gear and its honest numbers side by side (uber DPS,
     max hits, block, cost of the core uniques: Svalinn ~33 div), so "should
