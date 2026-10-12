@@ -144,6 +144,17 @@
   Not done: sampling rare prices from the trade API; a combined best
   prefix + suffix calculation (summed from each alone).
 
+- **Research 2026-10-12 (not a session):** "a Luminary that clears The
+  Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the
+  endpoints; decoders in `scripts/research/poe_ninja_builds.py`): 29,537
+  Allflame Luminaries; mercenary Kineticist 32%, Manyshot 30%, Combatant 13%;
+  Flame Link support with Animate Guardian is the norm. Four characters below
+  level 96 through the engine (configured → uber DPS, EHP, lowest max hit):
+  Lightning Tendrils of Eccentricity 265M → 80M, 73k, 8k phys;
+  Facebreaker Doryani's Touch 36M → 11M, 175k, 7k phys; Eccentricity 44M →
+  13M, 27k, 10k phys; Kineticist aurabot 0 (merc not in PoB), 4.7M, 67k phys.
+  Reliquarian for comparison: 5.4M → 1.6M, 57k, 23k chaos. Ideas: §3.12.
+
 ## Usage log (claude.ai → Settings → Usage)
 
 | Date | Session | Window before → after | Weekly before → after | Notes |
