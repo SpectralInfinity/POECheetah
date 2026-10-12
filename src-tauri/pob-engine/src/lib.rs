@@ -48,6 +48,9 @@ pub struct SlotTrial {
 pub struct ItemTrial {
     /// The item's name as PoB read it.
     pub item: String,
+    /// The character level the item needs, as PoB read it.
+    #[serde(default)]
+    pub required_level: Option<f64>,
     /// The build's stats without the item.
     pub before: BTreeMap<String, f64>,
     /// One entry per slot the item fits; empty if it fits none.
@@ -111,7 +114,7 @@ type Reply<T> = mpsc::Sender<Result<T, String>>;
 
 enum Job {
     LoadBuild(String, Reply<BuildStats>),
-    TryItem(String, String, Reply<ItemTrial>),
+    TryItem(String, String, Mode, Reply<ItemTrial>),
     /// An engine.lua API function returning JSON, with its arguments.
     Json(&'static str, Vec<serde_json::Value>, Reply<serde_json::Value>),
 }
@@ -152,8 +155,8 @@ impl Engine {
                         Job::LoadBuild(xml, reply) => {
                             let _ = reply.send(api.load_build(&xml));
                         }
-                        Job::TryItem(xml, item, reply) => {
-                            let _ = reply.send(api.try_item(&xml, &item));
+                        Job::TryItem(xml, item, mode, reply) => {
+                            let _ = reply.send(api.try_item(&xml, &item, mode));
                         }
                         Job::Json(name, args, reply) => {
                             let _ = reply.send(api.call_json(name, args));
@@ -180,11 +183,11 @@ impl Engine {
     }
 
     /// Calculates the build (PoB XML) with an item, given as the text copied
-    /// in game or from the trade site, in each slot it fits.
-    pub fn try_item(&self, xml: &str, item_text: &str) -> Result<ItemTrial, String> {
+    /// in game or from the trade site, in each slot it fits, with the config in `mode`.
+    pub fn try_item(&self, xml: &str, item_text: &str, mode: Mode) -> Result<ItemTrial, String> {
         let (reply, result) = mpsc::channel();
         self.jobs
-            .send(Job::TryItem(xml.to_string(), item_text.to_string(), reply))
+            .send(Job::TryItem(xml.to_string(), item_text.to_string(), mode, reply))
             .map_err(|_| "Path of Building is not running".to_string())?;
         result
             .recv()
@@ -270,10 +273,10 @@ impl Api {
             .map_err(|e| format!("Unexpected result from Path of Building: {e}"))
     }
 
-    fn try_item(&self, xml: &str, item_text: &str) -> Result<ItemTrial, String> {
+    fn try_item(&self, xml: &str, item_text: &str, mode: Mode) -> Result<ItemTrial, String> {
         let value: Value = self
             .try_item
-            .call((xml, item_text))
+            .call((xml, item_text, mode.as_str()))
             .map_err(|e| format!("Path of Building could not try the item: {}", lua_message(&e)))?;
         self.lua
             .from_value(value)

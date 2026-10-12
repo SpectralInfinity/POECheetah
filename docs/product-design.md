@@ -116,7 +116,20 @@ and the league are shared by the passive, item and gem advice.
   boss check's settings, `withConfig` in the engine). Add it to the passive
   advisor (§3.1) too.
 
-### 3.3 Item check: "is this an upgrade for my build?"
+### 3.3 Item check: "is this an upgrade for my build?" (built in session 6)
+
+Built as: the "Item check" panel (paste, or "Watch the clipboard") and a small
+always-on-top window ("Pop out on top of the game"; stays over the game in
+windowed or windowed fullscreen, not exclusive fullscreen). Each copied piece
+of equipment goes through PoB in every slot it fits (`tryItem`, now in the
+goal's calculation mode); the answer is one line for the chosen goal
+("Upgrade for Balanced: +14% DPS, +2% effective HP in Ring 2", "Not for
+Balanced: Physical max hit 32k → 23k", "About the same", "Not an upgrade"),
+the costs, the level requirement if too high, and a unique's poe.ninja price
+with a trade link. Rares get no price (plain price checking stays with
+Awakened PoE Trade, §0). The clipboard is read once a second while watching,
+only item text is acted on, and nothing is kept or sent. The pop-out follows
+the build selected and the goal chosen in the main window (both saved).
 
 - In game, Ctrl+C on a hovered item copies its full text to the clipboard
   (a game feature; Ctrl+Alt+C gives the advanced text). The app notices PoE
@@ -125,7 +138,7 @@ and the league are shared by the passive, item and gem advice.
 - The player presses the keys; the app only reads the clipboard (§4).
 - First version: paste the item text into the app by hand.
 
-**Max-hit drawback check (owner's request, 2026-10-12, for session 6):** the
+**Max-hit drawback check (owner's request, 2026-10-12; built in session 6):** the
 drawback check (`drawbacks()` in `src/core/passives.ts`, used by passives, item
 upgrades and the item check) only looks at resistances, life, effective HP and
 DPS. A prediction test on a PCOC Reliquarian showed it missing real costs:

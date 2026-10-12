@@ -106,11 +106,12 @@ fn main() {
     }
     if let Some(i) = args.iter().position(|a| a == "--item") {
         let item = std::fs::read_to_string(&args[i + 1]).expect("read item text");
-        let trial = engine.try_item(&xml, &item).expect("try item");
-        println!("item: {}", trial.item);
+        let trial = engine.try_item(&xml, &item, mode).expect("try item");
+        write_json(&serde_json::to_value(&trial).expect("trial as JSON"));
+        println!("item: {} (requires level {:?})", trial.item, trial.required_level);
         for slot in &trial.slots {
             println!("{} (replacing {}):", slot.slot, slot.replaces.as_deref().unwrap_or("nothing"));
-            for key in ["CombinedDPS", "TotalEHP", "Life", "FireResist", "ColdMaximumHitTaken", "Str", "ReqStr", "Int", "ReqInt"] {
+            for key in ["CombinedDPS", "TotalEHP", "Life", "FireResist", "PhysicalMaximumHitTaken", "ColdMaximumHitTaken", "ChaosMaximumHitTaken", "Str", "ReqStr", "Int", "ReqInt"] {
                 let (a, b) = (trial.before.get(key), slot.stats.get(key));
                 println!("  {key}: {a:?} -> {b:?}");
             }

@@ -38,8 +38,17 @@ export const ASCENDANCY_POINTS = 8;
 
 /** Below this relative gain a passive isn't worth listing. */
 const MIN_GAIN = 0.001;
-/** Losing more than this share of life, effective HP or DPS counts as a drawback. */
+/** Losing more than this share of life, effective HP, DPS or a max hit counts as a drawback. */
 const SHARP_DROP = 0.05;
+
+/** The biggest hit of each type the build survives (PoB's "Maximum Hit Taken"). */
+const MAX_HITS = [
+  { key: "PhysicalMaximumHitTaken", label: "Physical max hit" },
+  { key: "FireMaximumHitTaken", label: "Fire max hit" },
+  { key: "ColdMaximumHitTaken", label: "Cold max hit" },
+  { key: "LightningMaximumHitTaken", label: "Lightning max hit" },
+  { key: "ChaosMaximumHitTaken", label: "Chaos max hit" },
+];
 
 const RESISTS = [
   { key: "FireResist", label: "Fire res" },
@@ -52,10 +61,16 @@ const ATTRIBUTE: Record<string, string> = { Str: "Strength", Dex: "Dexterity", I
 
 const pct = (x: number) => `${x > 0 ? "+" : "−"}${Math.abs(Math.round(x * 100))}%`;
 
+/** 31591 → "32k", 8123 → "8.1k", 950 → "950". */
+const hit = (x: number) =>
+  x >= 9950 ? `${Math.round(x / 1000)}k` : x >= 1000 ? `${(x / 1000).toFixed(1)}k` : `${Math.round(x)}`;
+
 /**
  * What a change costs the build: a resist going down (PoB's resist is already
  * capped, so any drop is below cap or further below it), a sharp loss of
- * life, effective HP or DPS, or an attribute requirement no longer met.
+ * life, effective HP, DPS or any max hit (effective HP can rise while one
+ * damage type gets through more easily, e.g. a body armour that replaces
+ * physical-to-fire conversion), or an attribute requirement no longer met.
  */
 export function drawbacks(before: Stats, after: Stats): string[] {
   const out: string[] = [];
@@ -71,6 +86,11 @@ export function drawbacks(before: Stats, after: Stats): string[] {
   ]) {
     const c = change(before[key] ?? 0, after[key] ?? 0);
     if (c < -SHARP_DROP) out.push(`${label} ${pct(c)}`);
+  }
+  for (const { key, label } of MAX_HITS) {
+    const a = before[key];
+    const b = after[key];
+    if (a !== undefined && b !== undefined && a > 0 && change(a, b) < -SHARP_DROP) out.push(`${label} ${hit(a)} → ${hit(b)}`);
   }
   for (const attr of ["Str", "Dex", "Int"]) {
     const req = after[`Req${attr}`];

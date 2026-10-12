@@ -104,33 +104,42 @@ function api.loadBuild(xmlText)
 end
 
 --- Calculates the build with an item (its text as copied in game or from the
---- trade site) in each slot it fits, as PoB's item tooltip compare does.
-function api.tryItem(xmlText, itemText)
+--- trade site) in each slot it fits, as PoB's item tooltip compare does, with
+--- the config in `mode` (see `modeChanges`).
+local inMode -- defined with the analysis below
+function api.tryItem(xmlText, itemText, mode)
 	if xmlText ~= loadedXml then load(xmlText) end
 	local item = new("Item", (itemText:gsub("\r\n", "\n"):gsub("^%s+", "")))
 	if not item.base then
 		error("Path of Building couldn't read that item. Copy it with Ctrl+C in game or from the trade site.", 0)
 	end
 	item:NormaliseQuality()
-	local itemsTab = build.itemsTab
-	itemsTab:UpdateSockets()
-	local calcFunc, calcBase = build.calcsTab:GetMiscCalculator()
-	local weaponSet = itemsTab.activeItemSet.useSecondWeaponSet and 2 or 1
-	local slots = {}
-	for slotName, slot in pairs(itemsTab.slots) do
-		if itemsTab:IsItemValidForSlot(item, slotName) and not slot.inactive
-			and (not slot.weaponSet or slot.weaponSet == weaponSet) and slot.shown() then
-			local current = itemsTab.items[slot.selItemId]
-			local output = calcFunc({ repSlotName = slotName, repItem = item })
-			slots[#slots + 1] = {
-				slot = slot.label or slotName,
-				replaces = current and current.name or nil,
-				stats = numericStats(output),
-			}
+	return inMode(mode or "configured", function()
+		local itemsTab = build.itemsTab
+		itemsTab:UpdateSockets()
+		local calcFunc, calcBase = build.calcsTab:GetMiscCalculator()
+		local weaponSet = itemsTab.activeItemSet.useSecondWeaponSet and 2 or 1
+		local slots = {}
+		for slotName, slot in pairs(itemsTab.slots) do
+			if itemsTab:IsItemValidForSlot(item, slotName) and not slot.inactive
+				and (not slot.weaponSet or slot.weaponSet == weaponSet) and slot.shown() then
+				local current = itemsTab.items[slot.selItemId]
+				local output = calcFunc({ repSlotName = slotName, repItem = item })
+				slots[#slots + 1] = {
+					slot = slot.label or slotName,
+					replaces = current and current.name or nil,
+					stats = numericStats(output),
+				}
+			end
 		end
-	end
-	table.sort(slots, function(a, b) return a.slot < b.slot end)
-	return { item = item.name, before = numericStats(calcBase), slots = slots }
+		table.sort(slots, function(a, b) return a.slot < b.slot end)
+		return {
+			item = item.name,
+			requiredLevel = item.requirements and item.requirements.level or nil,
+			before = numericStats(calcBase),
+			slots = slots,
+		}
+	end)
 end
 
 -- Analysis (design doc §3.9): recalculate the loaded build under other
@@ -308,7 +317,7 @@ end
 
 --- Runs `fn` with the loaded build's config switched to `mode`, then restores
 --- the build exactly, even when `fn` fails.
-local function inMode(mode, fn)
+function inMode(mode, fn)
 	local input = build.configTab.input
 	local original = copyTable(input)
 	local ok, result = pcall(function()

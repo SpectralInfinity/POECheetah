@@ -7,7 +7,7 @@ export type Goal = "damage" | "defence" | "balanced" | "bossing";
 export const GOALS: { id: Goal; label: string; hint: string }[] = [
   { id: "damage", label: "Damage", hint: "DPS" },
   { id: "defence", label: "Defence", hint: "effective HP" },
-  { id: "balanced", label: "Balanced", hint: "DPS and effective HP averaged; nothing that lowers a resistance or costs much" },
+  { id: "balanced", label: "Balanced", hint: "DPS and effective HP averaged; nothing that lowers a resistance or a max hit, or costs much" },
   {
     id: "bossing",
     label: "Bossing",

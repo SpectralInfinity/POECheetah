@@ -43,10 +43,10 @@ async fn pob_calculate(app: tauri::AppHandle, xml: String) -> Result<BuildStats,
 }
 
 /// Calculates the build with an item (text copied in game or from the trade
-/// site) in each slot it fits.
+/// site) in each slot it fits, with the config in `mode` (item check).
 #[tauri::command]
-async fn pob_try_item(app: tauri::AppHandle, xml: String, item: String) -> Result<ItemTrial, String> {
-    tauri::async_runtime::spawn_blocking(move || engine(&app)?.try_item(&xml, &item))
+async fn pob_try_item(app: tauri::AppHandle, xml: String, item: String, mode: Mode) -> Result<ItemTrial, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.try_item(&xml, &item, mode))
         .await
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
@@ -122,6 +122,8 @@ async fn market_get(url: String) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // Only read: the item check watches for item text the player copies in game (design doc §3.3, §4).
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(DB_URL, migrations())

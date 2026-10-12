@@ -337,3 +337,48 @@ ul.passives {
 .panel details {
   margin: 8px 0;
 }
+
+.item-check {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.item-check p {
+  margin: 0;
+}
+
+.verdict {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.verdict.upgrade {
+  color: var(--good);
+}
+
+.verdict.drawback,
+.verdict.worse {
+  color: var(--error);
+}
+
+.verdict.same,
+.verdict.no-slot {
+  color: var(--muted);
+}
+
+.item-check .drawback {
+  color: var(--accent);
+}
+
+.popout {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popout p {
+  margin: 0;
+}
