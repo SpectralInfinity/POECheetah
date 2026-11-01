@@ -1,11 +1,18 @@
 name: CI
 
-# Pull requests come from claude/** branches, whose push runs already report
-# on the PR; a pull_request trigger would run everything twice.
+# Kept small to save GitHub Actions minutes (Windows minutes cost more):
+# - Tests run once per change: on pull requests and on main, not on bare
+#   branch pushes (cloud sessions run the tests before every push).
+# - The Windows installer builds on main, on v* tags, and from a manual run
+#   (Actions → CI → Run workflow, any branch: that's how to try a PR's build).
+# - Changes that only touch docs or Markdown run nothing.
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
     tags: ["v*"]
+    paths-ignore: ["docs/**", "**/*.md"]
+  pull_request:
+    paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:
     inputs:
       release:
@@ -15,12 +22,14 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
+  # A newer push replaces a running build, except for releases.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch' }}
 
 jobs:
   test:
     name: Tests (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       pob-key: ${{ steps.pob-key.outputs.key }}
     steps:
@@ -76,7 +85,9 @@ jobs:
   windows-installer:
     name: Windows installer
     needs: test
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
+    timeout-minutes: 30
     permissions:
       contents: write # create a GitHub Release when a v* tag is pushed
     steps:

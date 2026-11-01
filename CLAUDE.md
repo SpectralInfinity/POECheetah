@@ -26,6 +26,10 @@ usage log: `docs/progress.md`.
   `scripts/fetch-pob.sh`; run it before `cargo test` or `npm run tauri dev`.
   Bump PoB by editing `src-tauri/pob-version.txt`.
 - `.github/workflows/` — CI: tests on Linux; Windows installer on `windows-latest`.
+  To save Actions minutes, CI runs on pull requests and `main` only (not on
+  branch pushes; run the tests locally before pushing), skips docs-only
+  changes, and builds the installer only on `main`, `v*` tags and manual runs
+  (Actions → CI → Run workflow on a branch to get its installer).
   The free account has 500 MB of artifact storage: branch installers are kept
   3 days (setup .exe only); PoB passes between jobs as a cache, not an artifact.
 
