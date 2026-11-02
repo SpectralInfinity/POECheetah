@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
+import type { AuditResult } from "../core/audit";
 import type { Calculated, CompareResult } from "../core/compare";
 import type { Mode } from "../core/goals";
 import type { ItemTrial } from "../core/itemCheck";
@@ -68,6 +69,12 @@ export async function calculateIn(xml: string, mode: Mode, skillPart?: number): 
 export async function compareBuilds(xml: string, target: string, mode: Mode, targetSkillPart?: number): Promise<CompareResult> {
   if (!isTauri()) return previewCompare(xml, target, mode);
   return invoke<CompareResult>("pob_compare", { xml, target, mode, targetSkillPart: targetSkillPart ?? null });
+}
+
+/** The build audit with the config as set: charges, conditions, stance, flasks, PoB's warnings (seconds). */
+export async function audit(xml: string): Promise<AuditResult> {
+  if (!isTauri()) return previewAudit(xml);
+  return invoke<AuditResult>("pob_audit", { xml });
 }
 
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
@@ -305,5 +312,55 @@ function previewCompare(xml: string, target: string, mode: Mode): CompareResult 
       { var: "conditionEnemyIgnited", label: "Is the enemy Ignited?", target: "true" },
       { var: "multiplierWitheredStackCount", label: "# of Withered Stacks", mine: "5", target: "15" },
     ],
+  };
+}
+
+function previewAudit(xml: string): AuditResult {
+  const before = previewResult(xml).stats;
+  const scaled = (dps: number, extra: Stats = {}) => ({ ...before, CombinedDPS: before.CombinedDPS * dps, ...extra });
+  const flask = (slot: string, name: string, kind: string, without: Stats, raw = "", alternatives: AuditResult["flasks"][number]["alternatives"] = []) => ({
+    slot,
+    name,
+    base: name.replace(/^.*?(\w+ Flask).*$/, "$1"),
+    kind,
+    active: true,
+    raw: `Rarity: MAGIC\n${name}\n${raw}`,
+    without,
+    alternatives,
+  });
+  return {
+    before: { ...before, TotalDPS: before.CombinedDPS * 0.06 },
+    skill: { name: "Poisonous Concoction of Bouncing", part: "No Flask" },
+    options: [
+      { var: "useFrenzyCharges", label: "Do you use Frenzy Charges?", kind: "check", current: "false", tries: [{ value: "true", stats: scaled(1.185) }] },
+      { var: "usePowerCharges", label: "Do you use Power Charges?", kind: "check", current: "true", tries: [{ value: "false", stats: scaled(0.976) }] },
+      { var: "buffTailwind", label: "Do you have Tailwind?", kind: "check", current: "false", tries: [{ value: "true", stats: scaled(1.08) }] },
+      {
+        var: "bloodSandStance",
+        label: "Stance",
+        kind: "list",
+        current: "Sand Stance",
+        tries: [{ value: "Blood Stance", stats: scaled(1, { TotalEHP: before.TotalEHP * 0.8, PhysicalMaximumHitTaken: 26_000 }) }],
+      },
+    ],
+    flasks: [
+      flask("Flask 1", "Saturated Divine Life Flask of Incessance", "Life", before),
+      flask("Flask 2", "Saturated Divine Life Flask of Quashing", "Life", before, "Grants Immunity to Ignite for 9 seconds if used while Ignited"),
+      flask("Flask 4", "Dabbler's Silver Flask of the Owl", "Utility", scaled(0.879), "61% reduced Effect of Curses on you during Effect"),
+      flask("Flask 5", "Progenesis, Amethyst Flask", "Utility", before, "", [
+        { base: "Sulphur Flask", stats: scaled(1.083) },
+        { base: "Diamond Flask", stats: scaled(1.016) },
+      ]),
+    ],
+    warnings: [{ stat: "ReqInt", text: "You do not meet the Intelligence requirement of Malevolence" }],
+    dotCap: 35_791_394,
+    text: {
+      items: [
+        { slot: "Boots", name: "Pain Spur, Wyrmscale Boots", raw: "Grants Level 20 Aspect of Arakaali Skill" },
+        { slot: "Gloves", name: "Gloves", raw: "Gain a Power Charge on Critical Strike" },
+      ],
+      nodes: ["Poisons you inflict deal Damage 20% faster"],
+      gems: ["Poisonous Concoction of Bouncing", "Flesh and Stone"],
+    },
   };
 }

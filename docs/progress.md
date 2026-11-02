@@ -28,9 +28,15 @@
       the gap explained piece by piece.
       (Built 2026-11-02 as v0.8.0; tick once comparing to a guide or a
       ladder character gives a list you'd follow.)
-- [ ] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
+- [x] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
       limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
-- [ ] 7b. Meta comparison with poe.ninja.
+      (Built 2026-11-02 as v0.9.0; tick once the audit of your build says
+      things you agree with.)
+- [ ] 7d. Minion builds: rank spectre/golem builds by their minions' DPS
+      (added 2026-11-02; PoB's minion output isn't read yet).
+- [x] 7b. Meta comparison with poe.ninja.
+      (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
+      installed app and the list matches what you see on poe.ninja.)
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
 - [ ] 10. League mechanics (3.29 mercenaries).
@@ -200,6 +206,50 @@
   pobb.in and pastebin (not reachable from this environment) and the panel
   in the installed app. Dev tool: `stats -- mine.xml --compare target.xml
   --mode conservative --json out.json` and `--calc --mode boss`.
+
+- **7c:** Engine `audit` (config toggles for charges, buffs, Killed
+  Recently and the stance; each flask off via PoB's `toggleFlask`; 16 plain
+  utility bases in every active flask slot; PoB's `BuildDisplayStats`
+  warnings, only where its `condFunc` holds, else every stat warns; the
+  build's item, passive and gem text) ~7 s on the Reliquarian. Judging in
+  `src/core/audit.ts`, UI `src/ui/Audit.tsx`. On the Reliquarian: frenzy
+  charges off and nothing grants them (on would be +19%, the figure the
+  design doc noted); Sand Stance, Blood Stance would cost 20% effective HP
+  and every max hit (Flesh and Stone sets it anyway); the three life flasks
+  kept for PCOC's charges; the Silver Flask gives +12% DPS and carries the
+  curse-effect suffix; Progenesis is kept (the owner's pick: PoB reads its
+  "life loss over 4 seconds" but it isn't in effective HP or max hits, so
+  uniques are never offered as the slot to spare), so no slot is free; blind
+  spots: "deal damage faster" on the tree, Watcher's Eye and Rapture Shard,
+  Pain Spur's Aspect of Arakaali, life flask charges, flask uptime. Its one
+  PoB warning is the Intelligence requirement (no DoT cap: 5M). Luminary:
+  power charges on from Assassin's Mark; judged by effective HP.
+  Owner's feedback, same day: Progenesis is kept on purpose (uniques are no
+  longer offered as the slot to spare); "Rage grants frenzy charges": PoB's
+  data has Rage as a melee support granting rage, and Blood Rage as the
+  frenzy-on-kill skill (already a source, marked on kill); the updated build
+  (`docs/test-builds/reliquarian-poison-95-update.txt`) has neither, and no
+  other frenzy source. On it the stance is unset, which PoB treats as Blood
+  Stance (the audit showed "nil" before the fix): Sand Stance would give
+  +25% effective HP and physical max hit 25.6k → 31.6k for 0% DPS, and
+  Blood Stance is flagged (94% of the damage is poison).
+  Dev tool: `stats -- build.xml --audit --json out.json`.
+
+- **7b:** `src/core/ladder.ts` (protobuf reader, NDIC dictionaries,
+  popularity, gaps, ranking), `src/ui/Meta.tsx`; Rust `market_get_bytes`
+  (same poe.ninja allowlist, binary); engine `passives` now lists the
+  allocated keystones, notables and ascendancy nodes (`allocated`). Live on
+  2026-11-02 (Allflame): 20 PCOC Reliquarians. For the owner's updated
+  build, without assumptions: Unnatural Instinct +5% DPS but −11% effective
+  HP (Damage only); Ralakesh's Impatience +2.4% DPS, −35% effective HP;
+  Asenath's Gentle Touch (45%) and Snakebite (25%) −1.5% DPS and every max
+  hit down; Olesya's Delight −12% DPS; The Writhing Jar 0% (worms not
+  modelled, said so); for Balanced nothing popular gains. Popular passives
+  the owner lacks (Arakaali's Fang 90%, Magebane 55%, Polaric Devastation
+  35%…) are all more than 4 points away; Vicious Projectiles (20%) and
+  Whispers of Doom (20%) shown by popularity. The item dictionary's hash
+  changed between two searches the same day: the app reads the hashes from
+  each search. Not checked: the panel in the installed app.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

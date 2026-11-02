@@ -7,6 +7,7 @@ fixtures (`src/core/__fixtures__/`, `src-tauri/pob-engine/tests/fixtures/`).
 | File | Character | Main skill | Good for |
 |---|---|---|---|
 | `reliquarian-poison-95.txt` | Level 95 Scion / Reliquarian | Poisonous Concoction of Bouncing | Damage and defence advice; the reference numbers in `docs/progress.md` (session 0) |
+| `reliquarian-poison-95-update.txt` | The same Reliquarian, updated (2026-11-02): Immortal Call, stance left at Blood Stance, Progenesis | The build audit (§3.12 items 15, 18): stance, flasks, charges |
 | `luminary-support-97.txt` | Level 97 Scion / Luminary | Flame Link (no damage of its own; party support with minions) | Builds whose main skill deals no damage; league mechanics (§3.6, Luminary mercenaries) |
 
 To try one with the engine (after `scripts/fetch-pob.sh`):

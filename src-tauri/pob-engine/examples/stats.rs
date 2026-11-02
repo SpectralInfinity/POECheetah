@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -133,6 +133,24 @@ fn main() {
                 println!("  {key}: {a:?} -> {b:?}");
             }
         }
+        return;
+    }
+    if args.iter().any(|a| a == "--audit") {
+        let t = std::time::Instant::now();
+        let a = engine.audit(&xml).expect("audit");
+        write_json(&a);
+        let dps = |s: &serde_json::Value| s["CombinedDPS"].as_f64().unwrap_or(0.0);
+        let base = dps(&a["before"]);
+        for o in a["options"].as_array().into_iter().flatten() {
+            let tries: Vec<String> = o["tries"].as_array().into_iter().flatten()
+                .map(|t| format!("{} {:+.1}%", t["value"], (dps(&t["stats"]) / base - 1.0) * 100.0)).collect();
+            println!("{} = {}: {}", o["label"], o["current"], tries.join(", "));
+        }
+        for f in a["flasks"].as_array().into_iter().flatten() {
+            println!("{} {} ({}): without {:+.1}%", f["slot"], f["name"], f["kind"], (dps(&f["without"]) / base - 1.0) * 100.0);
+        }
+        println!("warnings: {}", a["warnings"]);
+        println!("audit {:.1}s", t.elapsed().as_secs_f32());
         return;
     }
     if args.iter().any(|a| a == "--calc") {

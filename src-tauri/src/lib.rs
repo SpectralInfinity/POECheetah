@@ -112,6 +112,14 @@ async fn pob_compare(
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// The build audit: charges, conditions, stance, flasks and PoB's warnings.
+#[tauri::command]
+async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.audit(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Sites the app reads market data from (design doc §4): public pages only, no login.
 fn market_url_allowed(url: &str) -> bool {
     url.starts_with("https://poe.ninja/poe1/api/")
@@ -137,6 +145,16 @@ async fn market_get(url: String) -> Result<String, String> {
     fetch_text(&url).await
 }
 
+/// Fetches public market data that isn't text (poe.ninja's ladder search and
+/// name dictionaries are binary), same addresses as `market_get`.
+#[tauri::command]
+async fn market_get_bytes(url: String) -> Result<Vec<u8>, String> {
+    if !market_url_allowed(&url) {
+        return Err(format!("Not a market data address: {url}"));
+    }
+    Ok(fetch(&url).await?.bytes().await.map_err(|e| format!("Could not read {url}: {e}"))?.to_vec())
+}
+
 /// Fetches the PoB code a build link holds (pobb.in or pastebin raw page).
 #[tauri::command]
 async fn build_link_get(url: String) -> Result<String, String> {
@@ -147,6 +165,10 @@ async fn build_link_get(url: String) -> Result<String, String> {
 }
 
 async fn fetch_text(url: &str) -> Result<String, String> {
+    fetch(url).await?.text().await.map_err(|e| format!("Could not read {url}: {e}"))
+}
+
+async fn fetch(url: &str) -> Result<reqwest::Response, String> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
             "POECheetah/",
@@ -161,7 +183,7 @@ async fn fetch_text(url: &str) -> Result<String, String> {
     if !status.is_success() {
         return Err(format!("{url} answered {status}"));
     }
-    response.text().await.map_err(|e| format!("Could not read {url}: {e}"))
+    Ok(response)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -192,7 +214,9 @@ pub fn run() {
             pob_rare_search,
             pob_calculate_mode,
             pob_compare,
+            pob_audit,
             market_get,
+            market_get_bytes,
             build_link_get
         ])
         .run(tauri::generate_context!())

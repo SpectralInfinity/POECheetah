@@ -262,6 +262,22 @@ show what the patch changed for each.
   User-Agent; check its terms when building. If that isn't allowed or
   breaks, fall back to the user pasting poe.ninja character links/codes.
 
+**Built in session 7b (2026-11-02)** as the "Meta comparison" panel (with
+§3.12 items 1–2): poe.ninja's ladder for your main skill and ascendancy
+(skill alone when no one plays that ascendancy), decoded in
+`src/core/ladder.ts` (protobuf search, NDIC names); popular choices (≥ 20%)
+you lack: uniques (generic "Rare Boots" entries left out), passives (poe.ninja's
+"keypassives" mixes keystones, ascendancy and timeless-jewel nodes, so they're
+matched against all your allocated names, from the engine's `passives`),
+the skill's support gems, anoints. Uniques are tried in your slots (engine
+`upgrades`), passives through the passive advisor (within 4 points, path
+included): "popular and strong for you" or "popular, small gain for you";
+gems and anoints by popularity only. Top characters with poe.ninja's
+figures and links for the Compare panel. Not yet (items 3, 4, 17, 19):
+gear cost of a build, budget finder, unique variants, other ascendancies.
+Live check: the search takes `&skills=<main skill>` (2026-11-02); the
+dimension `supportgems-<skill>` holds the skill's own supports.
+
 **poe.ninja's build data (checked 2026-10-12, undocumented; may change):**
 - League snapshot: `https://poe.ninja/poe1/api/data/index-state` → `snapshotVersions[]`
   (`url`, `type` = `exp`, `version`).
@@ -311,6 +327,22 @@ Feared, 70 div?"); each is a feature the app could do itself:
    `foulbornMap` (skipped in v0.6.0; 556 listings in Allflame).
 9. **Guides**: read a guide's PoB link (pobb.in, Maxroll planner) rather
    than its video; YouTube is only useful for the link in the description.
+
+**Built in session 7c (2026-11-02), items 13, 15, 18, 20 as the "Build
+audit" panel** (engine `audit`, `src/core/audit.ts`): the charges, buffs and
+Killed Recently the config sets, each tried the other way, with what in the
+build grants it (item, passive or gem text; on-kill sources and nothing at
+all both read "not true against a lone boss"); the stance's alternatives with
+their max hits, Blood Stance flagged on damage over time, Flesh and Stone
+noted; each flask's worth (PoB's `toggleFlask`), what it protects against,
+life flasks kept for skills that use their charges, uniques kept (PoB may
+read them without counting them, e.g. Progenesis), the slot to spare (or "no
+slot is free") and plain utility bases ranked for it (bases already worn
+left out); and PoB's
+blind spots: its own "exceeds in game limit" warnings, "deal damage faster",
+The Writhing Jar, Aspect of Arakaali, life flask charge sustain, flask
+uptime. Not yet: per-content flask sets, flask enchantments and quality,
+aura suggestions with reservation, the ladder's life flask count.
 
 Two PCOC Reliquarians compared the same day (3.7M vs 5.4M in PoB; the 5.0M
 poe.ninja shows is poison alone) added these checks for session 7's build
@@ -518,6 +550,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
+| 7d | Minion builds (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
