@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
+import type { Calculated, CompareResult } from "../core/compare";
 import type { Mode } from "../core/goals";
 import type { ItemTrial } from "../core/itemCheck";
 import type { PassiveCandidate, PassiveResult } from "../core/passives";
@@ -55,6 +56,18 @@ export async function rareSearch(
     return { slot, query: JSON.stringify(query) };
   }
   return invoke<{ slot: string; query: string }>("pob_rare_search", { xml, mode, slot, weights });
+}
+
+/** A build's numbers in `mode`, its main skill in part `skillPart` (PoB's 1-based number) if given. */
+export async function calculateIn(xml: string, mode: Mode, skillPart?: number): Promise<Calculated> {
+  if (!isTauri()) return previewCalculated(xml, mode);
+  return invoke<Calculated>("pob_calculate_mode", { xml, mode, skillPart: skillPart ?? null });
+}
+
+/** My build against a target build, each gear slot swapped both ways (10–30 s). */
+export async function compareBuilds(xml: string, target: string, mode: Mode, targetSkillPart?: number): Promise<CompareResult> {
+  if (!isTauri()) return previewCompare(xml, target, mode);
+  return invoke<CompareResult>("pob_compare", { xml, target, mode, targetSkillPart: targetSkillPart ?? null });
 }
 
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
@@ -241,6 +254,56 @@ function previewUpgrades(xml: string, mode: Mode, names: string[]): UpgradeResul
         prefixes: [{ modId: "a", lines: ["25% increased effect", "(33-25)% reduced Duration"], stats: { ...plain, CombinedDPS: plain.CombinedDPS * 1.04 } }],
         suffixes: [{ modId: "b", lines: ["(14-20)% increased Attack Speed during Effect"], stats: { ...plain, CombinedDPS: plain.CombinedDPS * 1.06 } }],
       },
+    ],
+  };
+}
+
+const MODE_DPS: Record<Mode, number> = { configured: 1, conservative: 0.53, boss: 0.3 };
+
+/** Sample numbers: a target build is the preview build scaled by its level, a mixed build by its XML length. */
+function previewCalculated(xml: string, mode: Mode): Calculated {
+  const s = previewResult(xml).stats;
+  const wobble = 0.9 + (xml.length % 23) / 100;
+  return {
+    stats: { ...s, CombinedDPS: s.CombinedDPS * MODE_DPS[mode] * wobble, TotalEHP: s.TotalEHP * (2 - wobble) },
+    skill: { name: "Poisonous Concoction of Bouncing", part: "No Flask", partIndex: 1 },
+  };
+}
+
+function previewCompare(xml: string, target: string, mode: Mode): CompareResult {
+  const mine = previewCalculated(xml, mode);
+  const theirs = previewCalculated(target, mode);
+  const scaled = (dps: number, extra: Stats = {}) => ({ ...mine.stats, CombinedDPS: mine.stats.CombinedDPS * dps, ...extra });
+  const item = (name: string, rarity: string, raw = "") => ({ name, rarity, raw: `Rarity: ${rarity}\n${name}\n${raw}` });
+  return {
+    mode,
+    mine,
+    target: theirs,
+    slots: [
+      {
+        slot: "Gloves",
+        mine: item("Plain Gloves, Vaal Gauntlets", "RARE"),
+        target: item("Asenath's Gentle Touch, Silk Gloves", "UNIQUE", "Curse Enemies with Temporal Chains on Hit"),
+        intoMine: scaled(0.97),
+        intoTarget: scaled(1.1),
+      },
+      {
+        slot: "Body Armour",
+        mine: item("Cloak of Flame, Scholar's Robe", "UNIQUE"),
+        target: item("Cloak of Flame, Scholar's Robe", "UNIQUE", "+2 to Level of Socketed Projectile Gems"),
+        intoMine: scaled(1.18),
+        intoTarget: scaled(1.05),
+      },
+      {
+        slot: "Weapon 2",
+        mine: item("Dawnbreaker, Colossal Tower Shield", "UNIQUE"),
+        target: item("Replica Mistwall, Lacquered Buckler", "UNIQUE"),
+        intoMine: scaled(1.04, { TotalEHP: mine.stats.TotalEHP * 1.3, PhysicalMaximumHitTaken: mine.stats.PhysicalMaximumHitTaken * 0.7 }),
+      },
+    ],
+    config: [
+      { var: "conditionEnemyIgnited", label: "Is the enemy Ignited?", target: "true" },
+      { var: "multiplierWitheredStackCount", label: "# of Withered Stacks", mine: "5", target: "15" },
     ],
   };
 }

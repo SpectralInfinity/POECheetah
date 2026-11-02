@@ -70,6 +70,10 @@ pub type Passives = serde_json::Value;
 /// ranked flask mods, passed through like [`Analysis`].
 pub type Upgrades = serde_json::Value;
 
+/// A build compared with a target build, or one build's numbers (design doc
+/// §3.0), passed through like [`Analysis`].
+pub type Compared = serde_json::Value;
+
 /// How the build's config is set for a calculation (design doc §3.1, §3.2, §3.9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -224,6 +228,20 @@ impl Engine {
         serde_json::from_value(value).map_err(|e| format!("Unexpected result from Path of Building: {e}"))
     }
 
+    /// PoB's numbers for a build (PoB XML) with the config in `mode`, the main
+    /// skill calculated in part `skill_part` (1-based, as PoB counts) if given.
+    pub fn calculate(&self, xml: &str, mode: Mode, skill_part: Option<u32>) -> Result<Compared, String> {
+        self.json("calculate", vec![xml.into(), mode.as_str().into(), skill_part.into()])
+    }
+
+    /// My build against a target build (both PoB XML) with the config in
+    /// `mode`: both builds' numbers, each slot's items swapped both ways, and
+    /// the config options that differ. The target's main skill is calculated
+    /// in part `target_skill_part` if given. Loads each build once or twice.
+    pub fn compare(&self, my_xml: &str, target_xml: &str, mode: Mode, target_skill_part: Option<u32>) -> Result<Compared, String> {
+        self.json("compare", vec![my_xml.into(), target_xml.into(), mode.as_str().into(), target_skill_part.into()])
+    }
+
     fn json(&self, name: &'static str, args: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
         let (reply, result) = mpsc::channel();
         self.jobs
@@ -258,6 +276,8 @@ impl Api {
             "analyse" => "analyse the build",
             "passives" => "check passives",
             "upgrades" => "try items",
+            "calculate" => "calculate the build",
+            "compare" => "compare the builds",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));

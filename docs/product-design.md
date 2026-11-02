@@ -50,6 +50,24 @@ only explains them; it never invents them.
 - **Accepted inputs:** a PoB code; a link that holds one (pobb.in, pastebin,
   poe.ninja character pages): the app fetches the code from the link; later,
   characters from your GGG account (§4).
+- **Built in session 7a (2026-11-02):** the "Compare to a build or guide"
+  panel. Paste a code or a link (pobb.in and pastebin raw pages; poe.ninja
+  character pages through its character data). Guides with several trees,
+  item sets or skill sets start at the tree whose node count is nearest
+  yours (sets matched by name, else position), and each can be changed.
+  The engine (`compare`) swaps every gear slot's item both ways and diffs
+  the config; mixed builds (your build with their tree, gems, all gear or
+  config, `hybrid()` in `src/core/compare.ts`) give each whole's worth.
+  Jewels move with the gear; skill groups granted by the tree or items are
+  dropped from mixed builds so PoB's main group stays the same. The list
+  "do these first" ranks the swaps by the goal's gain, with drawbacks (max
+  hits included), poe.ninja prices for uniques, and what the replaced item
+  and theirs carry (curses, granted skills, socketed gem levels). Their
+  config is shown apart ("their assumptions"). Also: PoB's damage factors
+  side by side, the target calculated in your skill part when the main
+  skill is the same, and a verdict against an uber pinnacle boss (DPS and
+  weakest max hit). Not yet: coupled slots swapped together (all gear
+  covers them), gem prices, Maxroll planner links (copy the code).
 - **Compare to a target build** (e.g. a guide or a top poe.ninja character
   with the same skill): the app lists the differences (passives, items, gems,
   ascendancy) and orders them by gain per cost, so the answer is "do these
@@ -494,7 +512,8 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3); max-hit drawback check (below) | Copy an item in game → upgrade or not, for your build; an item that cuts a max hit is flagged |
-| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first, with the DPS gap explained piece by piece and a verdict for a named fight; charge and condition audit, what an item carries, flask set planner (§3.12 items 10–16, 18, 20) |
+| 7a | Compare to a target build / guide, incl. guide stages (§3.0) + build links; the gap explained piece by piece (§3.12 items 10–12, 14, 16) | Paste a guide's code or link → ordered list of what to change first, the DPS gap split into config, tree, gems and each gear slot, what each replaced item carries, and a verdict for an uber boss fight |
+| 7c | Build audit (§3.12 items 13, 15, 18, 20): charges, conditions and stances; flask set planner; PoB limits flagged | Your build: "turn this on in PoB" / "not true on a boss" with each one's worth; a ranked flask set per content; PoB's blind spots shown next to the numbers |
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4, 17, 19) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |

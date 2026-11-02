@@ -5,4 +5,9 @@
  {"name":"Hardcore","url":"hardcore","displayName":"Hardcore"},
  {"broken":true}
 ],
-"oldEconomyLeagues":[{"name":"Ancestors","url":"ancestors","displayName":"Ancestors"}]}
+"oldEconomyLeagues":[{"name":"Ancestors","url":"ancestors","displayName":"Ancestors"}],
+"snapshotVersions":[
+ {"url":"mercenaries","type":"exp","name":"Mercenaries","version":"0001-20261001-00001","snapshotName":"mercenaries","overviewType":0},
+ {"url":"mercenaries","type":"depthsolo","name":"Mercenaries","version":"0002-20261001-00002","snapshotName":"mercenaries","overviewType":0},
+ {"url":"mercenarieshc","type":"exp","name":"Hardcore Mercenaries","version":"0003-20261001-00003","snapshotName":"hardcore-mercenaries","overviewType":0}
+]}

@@ -8,3 +8,4 @@ src-tauri/gen/schemas/
 .env*
 .DS_Store
 src-tauri/pob/
+__pycache__/

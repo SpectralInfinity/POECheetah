@@ -382,3 +382,27 @@ ul.passives {
 .popout p {
   margin: 0;
 }
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.compare p,
+.compare h4 {
+  margin: 0;
+}
+
+.compare .drawback {
+  color: var(--accent);
+}

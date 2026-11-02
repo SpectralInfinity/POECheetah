@@ -242,3 +242,36 @@ fn makes_a_weighted_rare_search_for_a_slot() {
     let err = engine.rare_search(&xml, Mode::Conservative, "Ring 9", &weights).unwrap_err();
     assert!(err.contains("Ring 9"), "{err}");
 }
+
+#[test]
+fn compares_a_build_with_a_target_slot_by_slot() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let mine = include_str!("fixtures/fireball-witch.xml");
+    let target = witch_with_flask();
+    let dps = |v: &serde_json::Value| v["CombinedDPS"].as_f64().unwrap();
+
+    // calculate: the mode applies, and no skill part (JSON null) leaves the skill as it is.
+    let configured = engine.calculate(&target, Mode::Configured, None).expect("calculated");
+    let conservative = engine.calculate(&target, Mode::Conservative, None).expect("calculated");
+    assert_eq!(configured["skill"]["name"], "Fireball");
+    assert!(dps(&conservative["stats"]) < dps(&configured["stats"]), "shock cleared");
+
+    let c = engine.compare(mine, &target, Mode::Configured, None).expect("compared");
+    assert_eq!(dps(&c["target"]["stats"]), dps(&configured["stats"]));
+    let slots: Vec<&str> = c["slots"].as_array().unwrap().iter().map(|s| s["slot"].as_str().unwrap()).collect();
+    assert_eq!(slots, ["Flask 1", "Ring 1"], "only the target holds items");
+    let ring = &c["slots"][1];
+    assert_eq!(ring["target"]["name"], "Test Loop, Gold Ring");
+    assert!(ring["mine"].is_null());
+    assert!(ring["intoMine"]["Life"].as_f64().unwrap() > c["mine"]["stats"]["Life"].as_f64().unwrap() + 49.0);
+    assert!(ring["intoTarget"].is_null(), "I have no ring to put in theirs");
+    let config: Vec<&str> = c["config"].as_array().unwrap().iter().map(|d| d["var"].as_str().unwrap()).collect();
+    assert_eq!(config, ["conditionEnemyShocked", "conditionShockEffect"]);
+    assert_eq!(c["config"][0]["target"], "true");
+    assert!(c["config"][0]["mine"].is_null());
+
+    // Both builds load as they were afterwards.
+    assert_eq!(engine.load_build(mine).expect("loads").stats, engine.load_build(mine).expect("loads again").stats);
+    assert_eq!(dps(&engine.calculate(&target, Mode::Configured, None).unwrap()["stats"]), dps(&configured["stats"]));
+}

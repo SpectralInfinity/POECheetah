@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -25,6 +25,23 @@ fn main() {
             std::fs::write(&args[i + 1], value.to_string()).expect("write JSON");
         }
     };
+    if let Some(i) = args.iter().position(|a| a == "--compare") {
+        let target = std::fs::read_to_string(&args[i + 1]).expect("read target XML");
+        let t = std::time::Instant::now();
+        let c = engine.compare(&xml, &target, mode, None).expect("compare");
+        write_json(&c);
+        let dps = |s: &serde_json::Value| s["CombinedDPS"].as_f64().unwrap_or(0.0);
+        let (mine, theirs) = (dps(&c["mine"]["stats"]), dps(&c["target"]["stats"]));
+        println!("mine {} ({}) {mine:.0} vs target {} ({}) {theirs:.0}", c["mine"]["skill"]["name"], c["mine"]["skill"]["part"],
+            c["target"]["skill"]["name"], c["target"]["skill"]["part"]);
+        for s in c["slots"].as_array().into_iter().flatten() {
+            println!("{}: {} -> {}  into mine {:+.1}%  mine into target {:+.1}%", s["slot"], s["mine"]["name"], s["target"]["name"],
+                (dps(&s["intoMine"]) / mine - 1.0) * 100.0, (dps(&s["intoTarget"]) / theirs - 1.0) * 100.0);
+        }
+        println!("config: {}", c["config"]);
+        println!("compare {:.1}s", t.elapsed().as_secs_f32());
+        return;
+    }
     if let Some(i) = args.iter().position(|a| a == "--rare") {
         let t = std::time::Instant::now();
         let weights = [pob_engine::StatWeight { stat: "CombinedDPS".into(), weight_mult: 1.0 },
@@ -116,6 +133,12 @@ fn main() {
                 println!("  {key}: {a:?} -> {b:?}");
             }
         }
+        return;
+    }
+    if args.iter().any(|a| a == "--calc") {
+        let c = engine.calculate(&xml, mode, None).expect("calculate");
+        write_json(&c);
+        println!("{} ({}): DPS {} EHP {}", c["skill"]["name"], c["skill"]["part"], c["stats"]["CombinedDPS"], c["stats"]["TotalEHP"]);
         return;
     }
     if args.iter().any(|a| a == "--all") {

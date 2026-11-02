@@ -24,7 +24,12 @@
 - [x] 6. Item check from the game clipboard; max-hit drawback check.
       (Built 2026-10-12 as v0.7.0; tick once copying an item in game shows
       the verdict in the pop-out and the max-hit flags make sense.)
-- [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
+- [x] 7a. Compare to a target build / guide (incl. guide stages); build links;
+      the gap explained piece by piece.
+      (Built 2026-11-02 as v0.8.0; tick once comparing to a guide or a
+      ladder character gives a list you'd follow.)
+- [ ] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
+      limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
 - [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
@@ -170,6 +175,32 @@
   environment; the shell compiles on Linux).
   Dev tool: `cargo run --release --example stats -- build.xml --item item.txt --mode boss [--json out.json]`.
 
+- **7a:** Engine `compare` (my build and a target, each gear slot's item
+  swapped both ways, config diff; ~10 s on two real Reliquarians) and
+  `calculate` (one build in a mode, optionally another skill part); TS in
+  `src/core/compare.ts` (stages, mixed builds, plan, damage factors, fight
+  verdict) and `src/core/buildLink.ts`; UI `src/ui/Compare.tsx`. Rust:
+  `pob_compare`, `pob_calculate_mode`, `build_link_get` (pobb.in and
+  pastebin raw pages only; poe.ninja via `market_get`). Fixed on the way: a
+  missing skill part reached Lua as JSON null (a truthy light userdata),
+  which crashed PoB's skill part code or left a stale result. Mixed builds
+  drop granted skill groups (`source="Tree:…"`/items), else PoB's main
+  group index shifts (their tree made "Summon Spectral Tiger" the main skill).
+  Checked against live poe.ninja: the ladder search takes
+  `&skills=Poisonous+Concoction+of+Bouncing` (20 PCOC Reliquarians of
+  2,890). The owner's Reliquarian against the 4th (4.82M configured,
+  poe.ninja's number): without assumptions theirs is 2.49M vs 2.82M, +25%
+  effective HP; uber boss 746k vs 856k DPS, weakest max hit 25k vs 23k chaos
+  ("yours kills faster, theirs survives 11% bigger hits"). Their Cloak of
+  Flame is −15% in the owner's build (the owner's in theirs +19%); their
+  gems −40%, all their gear −46%; Asenath's Gentle Touch +3% DPS but every
+  max hit down (Damage only); for Balanced only Phoenix Goad (+7% EHP), with
+  "yours gives: Aspect of Arakaali" shown (PoB values it at 0%). Factors:
+  curse limit ×2, damage per poison ×0.61, speed ×1.3. Not checked here:
+  pobb.in and pastebin (not reachable from this environment) and the panel
+  in the installed app. Dev tool: `stats -- mine.xml --compare target.xml
+  --mode conservative --json out.json` and `--calc --mode boss`.
+
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the
   endpoints; decoders in `scripts/research/poe_ninja_builds.py`): 29,537
@@ -190,3 +221,5 @@
 | 2026-10-10 | 3. Honest DPS, boss check, gem + pantheon ranking (+ v0.3.1 rename) | 3% → 9% | 17% → 18% | New 5-hour window, still the same long conversation |
 | 2026-10-10 | 4. Passive advisor | ? → 32% | 18% → 21% | New conversation; includes checking the two test builds |
 | 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |
+| 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
+| 2026-11-02 | 7a. Compare to a build or guide, build links | 40% → 84% | 21% → 27% | Same conversation as session 6's follow-ups; includes the roadmap split and checking against live poe.ninja ladder characters |

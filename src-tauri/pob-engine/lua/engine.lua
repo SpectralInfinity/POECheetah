@@ -703,4 +703,157 @@ function api.rareSearch(xmlText, mode, slotName, weights)
 	end)
 end
 
+-- Compare (design doc §3.0, §3.12 items 10–12, 16): the build against a
+-- target build (a guide, a ladder character), piece by piece.
+
+--- Stats kept for each item swap: what the app ranks and checks for drawbacks.
+local SWAP_KEYS = { "CombinedDPS", "TotalEHP", "Life", "EnergyShield", "Mana",
+	"FireResist", "ColdResist", "LightningResist", "ChaosResist",
+	"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken",
+	"ChaosMaximumHitTaken", "Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt" }
+
+--- The main skill, the part of it calculated ("No Flask", "Life"…) and that part's number.
+local function skillInfo()
+	local ok, info = pcall(function()
+		local skill = build.calcsTab.mainEnv.player.mainSkill
+		return {
+			name = skill.activeEffect.grantedEffect.name,
+			part = skill.skillPartName,
+			partIndex = skill.activeEffect.srcInstance and skill.activeEffect.srcInstance.skillPart,
+		}
+	end)
+	return ok and info or {}
+end
+
+--- Calculates the loaded build's main skill in another part, as PoB's skill part
+--- dropdown does. The loaded build no longer matches its XML afterwards.
+local function setSkillPart(part)
+	-- A missing part comes from Rust as JSON null (a light userdata, which is truthy).
+	if type(part) ~= "number" then return end
+	local ok, src = pcall(function() return build.calcsTab.mainEnv.player.mainSkill.activeEffect.srcInstance end)
+	if ok and src and src.skillPart ~= part then
+		src.skillPart = part
+		loadedXml = nil
+		recalc()
+	end
+end
+
+--- The items in the loaded build's active gear slots, by PoB slot name. Jewel
+--- sockets are left out: they belong to the tree, and the app swaps them with it.
+local function heldItems()
+	local out = {}
+	for slotName, slot in pairs(activeSlots()) do
+		local item = build.itemsTab.items[slot.selItemId]
+		if item and not slot.nodeId and not slotName:find("Abyssal") then
+			out[slotName] = { slot = slot.label or slotName, name = item.name, rarity = item.rarity, raw = item:BuildRaw() }
+		end
+	end
+	return out
+end
+
+--- The loaded build's config options that are set, by var: PoB's label and the value as shown.
+local function configValues()
+	local out = {}
+	for var, value in pairs(build.configTab.input) do
+		local opt = findOption(var)
+		if opt and opt.label then
+			out[var] = { label = optionLabel(opt), value = opt.list and listLabel(opt, value) or tostring(value) }
+		end
+	end
+	return out
+end
+
+--- The loaded build's stats with each of `items` (slot name → held item) in that slot.
+local function trySlots(items)
+	build.itemsTab:UpdateSockets()
+	local calcFunc = build.calcsTab:GetMiscCalculator()
+	local slots = activeSlots()
+	local out = {}
+	for slotName, held in pairs(items) do
+		if slots[slotName] then
+			local item = new("Item", held.raw)
+			if item.base and build.itemsTab:IsItemValidForSlot(item, slotName) then
+				out[slotName] = pick(calcFunc({ repSlotName = slotName, repItem = item }), SWAP_KEYS)
+			end
+		end
+	end
+	return out
+end
+
+--- PoB's numbers for build XML in `mode`, with the main skill in part `skillPart` if given.
+function api.calculate(xmlText, mode, skillPart)
+	if xmlText ~= loadedXml then load(xmlText) end
+	setSkillPart(skillPart)
+	return inMode(mode, function()
+		return { stats = numericStats(build.calcsTab.mainOutput), skill = skillInfo() }
+	end)
+end
+
+--- My build against a target build in `mode` (the target's main skill in part
+--- `targetSkillPart` if given, to compare like with like): both builds' numbers,
+--- each slot's items swapped both ways (the target's item in my build, mine in
+--- the target), and the config options that differ.
+function api.compare(myXml, targetXml, mode, targetSkillPart)
+	local function loadTarget()
+		load(targetXml)
+		setSkillPart(targetSkillPart)
+	end
+	loadTarget()
+	local target = inMode(mode, function()
+		return { stats = numericStats(build.calcsTab.mainOutput), skill = skillInfo(), items = heldItems(), config = configValues() }
+	end)
+	load(myXml)
+	local mine = inMode(mode, function()
+		return {
+			stats = numericStats(build.calcsTab.mainOutput),
+			skill = skillInfo(),
+			items = heldItems(),
+			config = configValues(),
+			withTheirs = trySlots(target.items),
+		}
+	end)
+	loadTarget()
+	local withMine = inMode(mode, function() return trySlots(mine.items) end)
+
+	local slots = array({})
+	local names = {}
+	for name in pairs(target.items) do names[#names + 1] = name end
+	for name in pairs(mine.items) do
+		if not target.items[name] then names[#names + 1] = name end
+	end
+	table.sort(names)
+	for _, name in ipairs(names) do
+		local m, t = mine.items[name], target.items[name]
+		slots[#slots + 1] = {
+			slot = (t or m).slot,
+			mine = m and { name = m.name, rarity = m.rarity, raw = m.raw } or nil,
+			target = t and { name = t.name, rarity = t.rarity, raw = t.raw } or nil,
+			intoMine = mine.withTheirs[name],
+			intoTarget = withMine[name],
+		}
+	end
+
+	local config = array({})
+	local vars = {}
+	for var in pairs(mine.config) do vars[var] = true end
+	for var in pairs(target.config) do vars[var] = true end
+	local sorted = {}
+	for var in pairs(vars) do sorted[#sorted + 1] = var end
+	table.sort(sorted)
+	for _, var in ipairs(sorted) do
+		local m, t = mine.config[var], target.config[var]
+		if not (m and t and m.value == t.value) then
+			config[#config + 1] = { var = var, label = (m or t).label, mine = m and m.value or nil, target = t and t.value or nil }
+		end
+	end
+
+	return {
+		mode = mode,
+		mine = { stats = mine.stats, skill = mine.skill },
+		target = { stats = target.stats, skill = target.skill },
+		slots = slots,
+		config = config,
+	}
+end
+
 return api
