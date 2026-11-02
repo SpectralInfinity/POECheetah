@@ -494,7 +494,8 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 4 | Passive advisor (§3.1) | Top 10 next passives with gain per point; you'd take most of them |
 | 5 | Item upgrade advisor (§3.2) with poe.ninja prices; Bossing goal | Per-slot buys ranked by gain per chaos, with trade links; also ranked for bossing |
 | 6 | Item check from the game clipboard (§3.3); max-hit drawback check (below) | Copy an item in game → upgrade or not, for your build; an item that cuts a max hit is flagged |
-| 7 | Compare to a target build / guide, incl. Maxroll stages (§3.0) + build links | Paste a guide's code → ordered list of what to change first, with the DPS gap explained piece by piece and a verdict for a named fight; charge and condition audit, what an item carries, flask set planner (§3.12 items 10–16, 18, 20) |
+| 7a | Compare to a target build / guide, incl. guide stages (§3.0) + build links; the gap explained piece by piece (§3.12 items 10–12, 14, 16) | Paste a guide's code or link → ordered list of what to change first, the DPS gap split into config, tree, gems and each gear slot, what each replaced item carries, and a verdict for an uber boss fight |
+| 7c | Build audit (§3.12 items 13, 15, 18, 20): charges, conditions and stances; flask set planner; PoB limits flagged | Your build: "turn this on in PoB" / "not true on a boss" with each one's worth; a ranked flask set per content; PoB's blind spots shown next to the numbers |
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4, 17, 19) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |

@@ -24,7 +24,10 @@
 - [x] 6. Item check from the game clipboard; max-hit drawback check.
       (Built 2026-10-12 as v0.7.0; tick once copying an item in game shows
       the verdict in the pop-out and the max-hit flags make sense.)
-- [ ] 7. Compare to a target build / guide (incl. Maxroll stages); build links.
+- [ ] 7a. Compare to a target build / guide (incl. guide stages); build links;
+      the gap explained piece by piece.
+- [ ] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
+      limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
 - [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
@@ -190,3 +193,4 @@
 | 2026-10-10 | 3. Honest DPS, boss check, gem + pantheon ranking (+ v0.3.1 rename) | 3% → 9% | 17% → 18% | New 5-hour window, still the same long conversation |
 | 2026-10-10 | 4. Passive advisor | ? → 32% | 18% → 21% | New conversation; includes checking the two test builds |
 | 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |
+| 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
