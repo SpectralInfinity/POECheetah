@@ -222,3 +222,4 @@
 | 2026-10-10 | 4. Passive advisor | ? → 32% | 18% → 21% | New conversation; includes checking the two test builds |
 | 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |
 | 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
+| 2026-11-02 | 7a. Compare to a build or guide, build links | 40% → 84% | 21% → 27% | Same conversation as session 6's follow-ups; includes the roadmap split and checking against live poe.ninja ladder characters |
