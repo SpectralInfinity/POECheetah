@@ -319,8 +319,10 @@ build grants it (item, passive or gem text; on-kill sources and nothing at
 all both read "not true against a lone boss"); the stance's alternatives with
 their max hits, Blood Stance flagged on damage over time, Flesh and Stone
 noted; each flask's worth (PoB's `toggleFlask`), what it protects against,
-life flasks kept for skills that use their charges, the slot to spare and
-plain utility bases ranked for it (bases already worn left out); and PoB's
+life flasks kept for skills that use their charges, uniques kept (PoB may
+read them without counting them, e.g. Progenesis), the slot to spare (or "no
+slot is free") and plain utility bases ranked for it (bases already worn
+left out); and PoB's
 blind spots: its own "exceeds in game limit" warnings, "deal damage faster",
 The Writhing Jar, Aspect of Arakaali, life flask charge sustain, flask
 uptime. Not yet: per-content flask sets, flask enchantments and quality,

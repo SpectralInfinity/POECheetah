@@ -213,8 +213,9 @@
   design doc noted); Sand Stance, Blood Stance would cost 20% effective HP
   and every max hit (Flesh and Stone sets it anyway); the three life flasks
   kept for PCOC's charges; the Silver Flask gives +12% DPS and carries the
-  curse-effect suffix; Progenesis is the slot to spare (PoB values it at
-  nothing, so the panel says check it first), Sulphur +8% DPS there; blind
+  curse-effect suffix; Progenesis is kept (the owner's pick: PoB reads its
+  "life loss over 4 seconds" but it isn't in effective HP or max hits, so
+  uniques are never offered as the slot to spare), so no slot is free; blind
   spots: "deal damage faster" on the tree, Watcher's Eye and Rapture Shard,
   Pain Spur's Aspect of Arakaali, life flask charges, flask uptime. Its one
   PoB warning is the Intelligence requirement (no DoT cap: 5M). Luminary:

@@ -228,6 +228,8 @@ export interface FlaskAdvice {
   /** What it does that PoB's DPS and effective HP don't show. */
   protects: string[];
   role: string;
+  /** A unique: its effect may be one PoB reads but doesn't count in DPS or effective HP. */
+  unique: boolean;
 }
 
 export interface FlaskPlan {
@@ -236,6 +238,8 @@ export interface FlaskPlan {
   lifeIsSustain: boolean;
   /** The slot the build needs least, and what moving its flask out costs. */
   free: FlaskAdvice | null;
+  /** Even the least needed flask gives something measurable: no slot is really free. */
+  noneFree: boolean;
   /** Utility flasks for that slot, best first (bases already worn left out: the same kind doesn't stack). */
   options: { base: string; dps: number; ehp: number; gain: number; note: string }[];
 }
@@ -255,6 +259,7 @@ export function planFlasks(r: AuditResult, goal: Goal): FlaskPlan {
         .map((l) => l.replace(/^(\{[^}]*\})+/, "").trim())
         .filter((l) => PROTECTS.test(l));
       const life = f.kind === "Life" || f.kind === "Hybrid";
+      const unique = /^Rarity: UNIQUE/im.test(f.raw);
       const role =
         life && lifeIsSustain
           ? `Life flask charges for ${r.skill.name}: Path of Building counts only your best life flask, not the charges the skill uses.`
@@ -264,12 +269,17 @@ export function planFlasks(r: AuditResult, goal: Goal): FlaskPlan {
               ? `Gives ${worth({ dps: -lost.dps, ehp: -lost.ehp }, noDamage)}.`
               : protects.length
                 ? "Protection only (its value isn't in DPS or effective HP)."
-                : /Rarity: UNIQUE/i.test(f.raw)
-                  ? "Path of Building values this unique at nothing: check what it does before swapping it out."
+                : unique
+                  ? "A unique whose effect isn't in DPS or effective HP (e.g. Progenesis spreads life loss over time): kept, as Path of Building can't weigh it."
                   : "Adds nothing Path of Building can measure.";
-      return { slot: f.slot, name: f.name, kind: f.kind, dps: -lost.dps, ehp: -lost.ehp, gain: -lost.gain, protects, role };
+      return { slot: f.slot, name: f.name, kind: f.kind, dps: -lost.dps, ehp: -lost.ehp, gain: -lost.gain, protects, role, unique };
     });
-  const spare = flasks.filter((f) => f.kind === "Utility" || f.kind === "Mana" || (!lifeIsSustain && f.kind === "Life" && flasks.filter((x) => x.kind === "Life").length > 1));
+  // Uniques are never offered: what they do is often outside DPS and effective HP.
+  const spare = flasks.filter(
+    (f) =>
+      !f.unique &&
+      (f.kind === "Utility" || f.kind === "Mana" || (!lifeIsSustain && f.kind === "Life" && flasks.filter((x) => x.kind === "Life").length > 1)),
+  );
   const free = spare.reduce<FlaskAdvice | null>((a, f) => (!a || f.gain < a.gain ? f : a), null);
   const worn = new Set(r.flasks.map((f) => f.base));
   const slot = free && r.flasks.find((f) => f.slot === free.slot);
@@ -283,7 +293,7 @@ export function planFlasks(r: AuditResult, goal: Goal): FlaskPlan {
     .filter((a) => a.gain > 0.001)
     .sort((a, b) => b.gain - a.gain)
     .slice(0, 5);
-  return { flasks, lifeIsSustain, free, options };
+  return { flasks, lifeIsSustain, free, noneFree: !!free && free.gain > 0.01, options };
 }
 
 // --- Path of Building's blind spots -------------------------------------------

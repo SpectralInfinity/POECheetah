@@ -124,11 +124,21 @@ describe("flask set", () => {
     expect(p.flasks[2].role).toBe("Gives +12% DPS.");
     expect(p.flasks[2].protects).toEqual(["61% reduced Effect of Curses on you during Effect"]);
     expect(p.flasks[3].role).toBe("Adds nothing Path of Building can measure.");
-    expect(planFlasks(audit({ flasks: [flask("Flask 5", "Progenesis", "Utility", {}, "Rarity: UNIQUE")] }), "damage").flasks[0].role).toContain("values this unique at nothing");
+    expect(p.noneFree).toBe(false);
     expect(p.free?.slot).toBe("Flask 4");
     // Silver is worn already (the same kind doesn't stack); Granite gains next to nothing.
     expect(p.options.map((o) => o.base)).toEqual(["Sulphur Flask", "Diamond Flask"]);
     expect(p.options[0].gain).toBeCloseTo(0.083);
+  });
+
+  it("never offers a unique (Progenesis), and says when no slot is free", () => {
+    const progenesis = { ...flask("Flask 5", "Progenesis, Amethyst Flask", "Utility", {}), raw: "Rarity: UNIQUE\nProgenesis\nAmethyst Flask" };
+    const r = audit({ flasks: [audit().flasks[0], audit().flasks[2], progenesis] });
+    const p = planFlasks(r, "damage");
+    expect(p.flasks[2].unique).toBe(true);
+    expect(p.flasks[2].role).toContain("can't weigh it");
+    expect(p.free?.name).toBe("Silver Flask of the Owl");
+    expect(p.noneFree).toBe(true);
   });
 
   it("can free a spare life flask when the skill doesn't use them", () => {

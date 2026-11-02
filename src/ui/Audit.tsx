@@ -100,7 +100,13 @@ export function BuildAudit(props: { goal: Goal; disabled: boolean; onRun: () => 
                   </li>
                 ))}
               </ul>
-              {flasks.free && (
+              {flasks.free && flasks.noneFree && (
+                <p className="small">
+                  No slot is free: every flask does something. The least needed is <strong>{flasks.free.slot}</strong> (
+                  {flasks.free.name}: {flasks.free.role.replace(/^Gives /, "gives ").replace(/\.$/, "")}).
+                </p>
+              )}
+              {flasks.free && !flasks.noneFree && (
                 <p className="small">
                   The slot you can spare: <strong>{flasks.free.slot}</strong> ({flasks.free.name}
                   {flasks.free.protects.length > 0 && `; keep its ${flasks.free.protects.join(", ")} elsewhere`}).
