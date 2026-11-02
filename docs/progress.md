@@ -32,8 +32,9 @@
       limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
       (Built 2026-11-02 as v0.9.0; tick once the audit of your build says
       things you agree with.)
-- [ ] 7d. Minion builds: rank spectre/golem builds by their minions' DPS
-      (added 2026-11-02; PoB's minion output isn't read yet).
+- [x] 7d. Minion builds: rank spectre/golem builds by their minions' DPS.
+      (Built 2026-11-02 as v0.11.0; tick once a spectre build of yours,
+      spectres chosen in PoB, shows their DPS and advice for it.)
 - [x] 7b. Meta comparison with poe.ninja.
       (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
       installed app and the list matches what you see on poe.ninja.)
@@ -250,6 +251,18 @@
   Whispers of Doom (20%) shown by popularity. The item dictionary's hash
   changed between two searches the same day: the app reads the hashes from
   each search. Not checked: the panel in the installed app.
+
+- **7d:** Engine `withMinions` (in `numericStats` and `pick`, so every
+  result) and `minionMissing`; health check "No minion for Path of Building
+  to calculate"; the build view says when DPS is the minions'. On a level
+  100 spectre Necromancer from the Allflame ladder: poe.ninja's export has
+  no `skillMinion` and no `<Spectre>` list, so PoB has no minion (DPS 0, now
+  flagged); with a spectre chosen by hand (Metadata/Monsters/Axis/AxisCaster,
+  arbitrary) PoB gives 7.0k per spectre × 14 = 98.4k, and the passive
+  advisor ranks minion nodes. Engine tests: Summon Raging Spirit on the test
+  witch (DPS = per minion × count), Raise Spectre with none chosen
+  (MinionMissing). The owner's builds are unchanged (PCOC deals its own
+  damage; the Luminary's Flame Link isn't a minion skill).
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

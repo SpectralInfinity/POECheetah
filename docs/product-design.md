@@ -262,6 +262,19 @@ show what the patch changed for each.
   User-Agent; check its terms when building. If that isn't allowed or
   breaks, fall back to the user pasting poe.ninja character links/codes.
 
+**Minion builds (session 7d, 2026-11-02):** when the main skill raises
+minions, PoB calculates them in `output.Minion` (per minion) and the
+player's CombinedDPS is 0. The engine now reports the build's CombinedDPS as
+the minions' (per minion × PoB's active minion limit) wherever it returns
+stats, with `MinionDPS`, `MinionCount` and `MinionDamage` = 1, so the passive,
+item, gem, compare, audit and meta advice all rank minion builds by their
+minions. A minion skill with nothing to calculate (Raise Spectre with no
+spectre chosen: poe.ninja's ladder exports never say which spectre, and
+neither does its character data) gets `MinionMissing` = 1 and a health
+check warning to choose it in PoB. Not yet: minion defences (their life,
+max hits), minion skills that aren't the main skill (auras, golems as
+support), Animate Guardian, mercenaries.
+
 **Built in session 7b (2026-11-02)** as the "Meta comparison" panel (with
 §3.12 items 1–2): poe.ninja's ladder for your main skill and ascendancy
 (skill alone when no one plays that ascendancy), decoded in
@@ -550,7 +563,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
-| 7d | Minion builds (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
+| 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions

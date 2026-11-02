@@ -306,6 +306,12 @@ function BuildView(props: {
           {describeBuild(latest.summary)}
           {latest.mainSkill && ` · ${latest.mainSkill}`} · updated {when(latest.addedAt)}
         </p>
+        {latest.stats?.MinionDamage === 1 && (
+          <p className="muted small">
+            Combined DPS is your minions': {formatStat("number", latest.stats.MinionDPS ?? 0)} each ×{" "}
+            {latest.stats.MinionCount ?? 1} at once (Path of Building's active minion limit). The advice ranks by it.
+          </p>
+        )}
         {latest.stats ? (
           <StatGrid stats={latest.stats} />
         ) : (

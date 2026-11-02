@@ -301,3 +301,51 @@ fn audits_charges_flasks_and_warnings_and_leaves_the_build_unchanged() {
     assert!(a["text"]["gems"].as_array().unwrap().iter().any(|g| g == "Fireball"));
     assert_eq!(engine.load_build(&xml).expect("loads again").stats, before.stats);
 }
+
+/// The witch with Summon Raging Spirit as her main skill: PoB calculates the
+/// minions in `output.Minion`, and the player's own DPS is 0.
+fn witch_with_spirits() -> String {
+    include_str!("fixtures/fireball-witch.xml").replace(
+        r#"<Gem nameSpec="Fireball" skillId="Fireball" gemId="Metadata/Items/Gems/SkillGemFireball""#,
+        r#"<Gem nameSpec="Summon Raging Spirit" skillId="SummonRagingSpirit" gemId="Metadata/Items/Gems/SkillGemSummonRagingSpirit""#,
+    )
+}
+
+#[test]
+fn counts_minion_damage_as_the_builds() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = witch_with_spirits();
+    let build = engine.load_build(&xml).expect("build loads");
+    assert_eq!(build.main_skill.as_deref(), Some("Summon Raging Spirit"));
+    let per = build.stats["MinionDPS"];
+    let count = build.stats["MinionCount"];
+    assert!(per > 0.0 && count >= 1.0, "{per} × {count}");
+    assert_close(&build.stats, "CombinedDPS", per * count);
+    assert_eq!(build.stats.get("MinionDamage"), Some(&1.0));
+    assert!(build.stats.get("MinionMissing").is_none());
+
+    // Every advisor sees it: the passive advisor's numbers are the minions' too.
+    let passives = engine.passives(&xml, Mode::Configured).expect("passives");
+    assert_eq!(passives["before"]["CombinedDPS"].as_f64(), Some(per * count));
+
+    // The Fireball witch deals her own damage: no minion keys.
+    let fireball = engine.load_build(include_str!("fixtures/fireball-witch.xml")).expect("loads");
+    assert!(fireball.stats.get("MinionDamage").is_none());
+}
+
+#[test]
+fn says_when_a_minion_skill_has_no_minion() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    // Raise Spectre with no spectre chosen, as poe.ninja's ladder exports it.
+    let xml = include_str!("fixtures/fireball-witch.xml").replace(
+        r#"<Gem nameSpec="Fireball" skillId="Fireball" gemId="Metadata/Items/Gems/SkillGemFireball""#,
+        r#"<Gem nameSpec="Raise Spectre" skillId="RaiseSpectre" gemId="Metadata/Items/Gems/SkillGemRaiseSpectre""#,
+    );
+    let build = engine.load_build(&xml).expect("build loads");
+    assert_eq!(build.stats.get("MinionMissing"), Some(&1.0));
+    assert_eq!(build.stats.get("CombinedDPS"), Some(&0.0));
+    let calculated = engine.calculate(&xml, Mode::Conservative, None).expect("calculated");
+    assert_eq!(calculated["stats"]["MinionMissing"], 1.0);
+}

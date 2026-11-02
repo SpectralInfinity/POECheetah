@@ -47,6 +47,16 @@ export function checkBuild(s: Stats, level: number): Finding[] {
   const add = (severity: Severity, id: string, title: string, detail: string) =>
     findings.push({ id, severity, title, detail });
 
+  // A minion skill with no minion to calculate (e.g. Raise Spectre with no spectre chosen).
+  if (s.MinionMissing === 1) {
+    add(
+      "warning",
+      "minion-missing",
+      "No minion for Path of Building to calculate",
+      "Your main skill raises minions, but none is chosen in Path of Building (for spectres: pick them in the Skills tab), so its damage shows as 0 and the advice can only rank defence. Choose the minion, then paste the code again.",
+    );
+  }
+
   // Weak spots by maximum hit taken.
   const maxHits = DAMAGE_TYPES.filter((t) => has(s, `${t}MaximumHitTaken`)).map((t) => ({
     type: t,

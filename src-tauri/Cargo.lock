@@ -3137,7 +3137,7 @@ dependencies = [
 
 [[package]]
 name = "poecheetah"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "pob-engine",
  "reqwest 0.12.28",

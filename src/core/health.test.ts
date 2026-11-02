@@ -87,6 +87,11 @@ describe("build health check", () => {
     ]);
   });
 
+  it("says when a minion skill has no minion to calculate", () => {
+    expect(checkBuild({ ...covered, MinionMissing: 1 }, 95)[0].id).toBe("minion-missing");
+    expect(checkBuild(covered, 95).map((f) => f.id)).not.toContain("minion-missing");
+  });
+
   it("lists what an item swap adds and removes", () => {
     const before = checkBuild(covered, 95);
     const after = checkBuild({ ...covered, Int: 111, LightningMaximumHitTaken: 12000 }, 95);
