@@ -493,6 +493,15 @@ passivesNow = function()
 		pointsUsed = used,
 		extraPoints = build.calcsTab.mainOutput.ExtraPoints or 0,
 		ascendancyUsed = ascUsed,
+		-- Every allocated node's name (keystones, notables, ascendancy and timeless ones).
+		allocated = (function()
+			local names = array({})
+			for _, node in pairs(build.spec.allocNodes) do
+				if node.dn and node.type ~= "Normal" then names[#names + 1] = node.dn end
+			end
+			table.sort(names)
+			return names
+		end)(),
 		candidates = candidates,
 		masterySwaps = swaps,
 	}

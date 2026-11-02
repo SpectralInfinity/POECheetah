@@ -34,7 +34,9 @@
       things you agree with.)
 - [ ] 7d. Minion builds: rank spectre/golem builds by their minions' DPS
       (added 2026-11-02; PoB's minion output isn't read yet).
-- [ ] 7b. Meta comparison with poe.ninja.
+- [x] 7b. Meta comparison with poe.ninja.
+      (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
+      installed app and the list matches what you see on poe.ninja.)
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
 - [ ] 10. League mechanics (3.29 mercenaries).
@@ -232,6 +234,22 @@
   +25% effective HP and physical max hit 25.6k → 31.6k for 0% DPS, and
   Blood Stance is flagged (94% of the damage is poison).
   Dev tool: `stats -- build.xml --audit --json out.json`.
+
+- **7b:** `src/core/ladder.ts` (protobuf reader, NDIC dictionaries,
+  popularity, gaps, ranking), `src/ui/Meta.tsx`; Rust `market_get_bytes`
+  (same poe.ninja allowlist, binary); engine `passives` now lists the
+  allocated keystones, notables and ascendancy nodes (`allocated`). Live on
+  2026-11-02 (Allflame): 20 PCOC Reliquarians. For the owner's updated
+  build, without assumptions: Unnatural Instinct +5% DPS but −11% effective
+  HP (Damage only); Ralakesh's Impatience +2.4% DPS, −35% effective HP;
+  Asenath's Gentle Touch (45%) and Snakebite (25%) −1.5% DPS and every max
+  hit down; Olesya's Delight −12% DPS; The Writhing Jar 0% (worms not
+  modelled, said so); for Balanced nothing popular gains. Popular passives
+  the owner lacks (Arakaali's Fang 90%, Magebane 55%, Polaric Devastation
+  35%…) are all more than 4 points away; Vicious Projectiles (20%) and
+  Whispers of Doom (20%) shown by popularity. The item dictionary's hash
+  changed between two searches the same day: the app reads the hashes from
+  each search. Not checked: the panel in the installed app.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

@@ -262,6 +262,22 @@ show what the patch changed for each.
   User-Agent; check its terms when building. If that isn't allowed or
   breaks, fall back to the user pasting poe.ninja character links/codes.
 
+**Built in session 7b (2026-11-02)** as the "Meta comparison" panel (with
+§3.12 items 1–2): poe.ninja's ladder for your main skill and ascendancy
+(skill alone when no one plays that ascendancy), decoded in
+`src/core/ladder.ts` (protobuf search, NDIC names); popular choices (≥ 20%)
+you lack: uniques (generic "Rare Boots" entries left out), passives (poe.ninja's
+"keypassives" mixes keystones, ascendancy and timeless-jewel nodes, so they're
+matched against all your allocated names, from the engine's `passives`),
+the skill's support gems, anoints. Uniques are tried in your slots (engine
+`upgrades`), passives through the passive advisor (within 4 points, path
+included): "popular and strong for you" or "popular, small gain for you";
+gems and anoints by popularity only. Top characters with poe.ninja's
+figures and links for the Compare panel. Not yet (items 3, 4, 17, 19):
+gear cost of a build, budget finder, unique variants, other ascendancies.
+Live check: the search takes `&skills=<main skill>` (2026-11-02); the
+dimension `supportgems-<skill>` holds the skill's own supports.
+
 **poe.ninja's build data (checked 2026-10-12, undocumented; may change):**
 - League snapshot: `https://poe.ninja/poe1/api/data/index-state` → `snapshotVersions[]`
   (`url`, `type` = `exp`, `version`).

@@ -28,6 +28,8 @@ export interface PassiveResult {
   /** Points from outside levels and quests that PoB counts (e.g. from items). */
   extraPoints: number;
   ascendancyUsed: number;
+  /** Names of the allocated keystones, notables and ascendancy nodes (missing from older engines). */
+  allocated?: string[];
   candidates: PassiveCandidate[];
   masterySwaps: PassiveCandidate[];
 }

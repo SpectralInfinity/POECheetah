@@ -23,6 +23,7 @@ import { analyse, audit, calculate, passives, rareSearch, upgrades } from "./pob
 import { BuildAudit } from "./Audit";
 import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
+import { MetaComparison } from "./Meta";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
 import { ItemUpgrades, type RareSearchFn } from "./Upgrades";
@@ -365,6 +366,19 @@ function BuildView(props: {
 
       {latest.stats && (
         <DeepAnalysis key={`a${latest.id}`} mode={mode} league={league} disabled={props.disabled} onRun={props.onAnalyse} />
+      )}
+
+      {latest.stats && (
+        <MetaComparison
+          key={`m${latest.id}`}
+          code={latest.code}
+          skill={latest.mainSkill}
+          ascendancy={latest.summary.ascendancy}
+          goal={goal}
+          mode={mode}
+          league={league}
+          disabled={props.disabled}
+        />
       )}
 
       {latest.stats && (
