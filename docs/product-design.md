@@ -50,6 +50,24 @@ only explains them; it never invents them.
 - **Accepted inputs:** a PoB code; a link that holds one (pobb.in, pastebin,
   poe.ninja character pages): the app fetches the code from the link; later,
   characters from your GGG account (§4).
+- **Built in session 7a (2026-11-02):** the "Compare to a build or guide"
+  panel. Paste a code or a link (pobb.in and pastebin raw pages; poe.ninja
+  character pages through its character data). Guides with several trees,
+  item sets or skill sets start at the tree whose node count is nearest
+  yours (sets matched by name, else position), and each can be changed.
+  The engine (`compare`) swaps every gear slot's item both ways and diffs
+  the config; mixed builds (your build with their tree, gems, all gear or
+  config, `hybrid()` in `src/core/compare.ts`) give each whole's worth.
+  Jewels move with the gear; skill groups granted by the tree or items are
+  dropped from mixed builds so PoB's main group stays the same. The list
+  "do these first" ranks the swaps by the goal's gain, with drawbacks (max
+  hits included), poe.ninja prices for uniques, and what the replaced item
+  and theirs carry (curses, granted skills, socketed gem levels). Their
+  config is shown apart ("their assumptions"). Also: PoB's damage factors
+  side by side, the target calculated in your skill part when the main
+  skill is the same, and a verdict against an uber pinnacle boss (DPS and
+  weakest max hit). Not yet: coupled slots swapped together (all gear
+  covers them), gem prices, Maxroll planner links (copy the code).
 - **Compare to a target build** (e.g. a guide or a top poe.ninja character
   with the same skill): the app lists the differences (passives, items, gems,
   ascendancy) and orders them by gain per cost, so the answer is "do these

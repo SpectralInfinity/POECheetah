@@ -225,11 +225,44 @@ function setSockets(xml: string, sockets: string): string {
 }
 
 /**
+ * Skill groups granted by the tree or an item (`source="Tree:…"`) vanish on
+ * load when their source is gone, which shifts PoB's main group index. Leaves
+ * them out of the active skill set (except the main group; PoB adds back what
+ * the build still grants, at the end) and points the index at the same group.
+ */
+export function pinMainGroup(xml: string): string {
+  const skills = first(xml, "Skills");
+  const build = first(xml, "Build");
+  if (!skills || !build) return xml;
+  const id = attr(skills.text, "activeSkillSet");
+  const sets = spans(skills.text, "SkillSet");
+  const set = sets.find((x) => attr(x.text, "id") === id) ?? sets[0];
+  const holder = set ?? { start: 0, end: skills.text.length, text: skills.text };
+  const groups = spans(holder.text, "Skill");
+  const main = Number(attr(build.text, "mainSocketGroup")) || 1;
+  let text = holder.text;
+  let shift = 0;
+  groups.forEach((g, i) => {
+    if (i + 1 === main || attr(g.text, "source") === null) return;
+    text = text.replace(g.text, "");
+    if (i + 1 < main) shift++;
+  });
+  if (text === holder.text) return xml;
+  const newSkills = splice(skills.text, holder, text);
+  const out = splice(xml, skills, newSkills);
+  return setSectionAttr(out, "Build", "mainSocketGroup", String(main - shift));
+}
+
+/**
  * My build (PoB XML) with one piece of the target's as a whole. Jewels sit in
  * the tree but are items: "tree" keeps my jewels (in the sockets both trees
  * have), "gear" brings the target's.
  */
 export function hybrid(mine: string, target: string, piece: Piece): string {
+  return pinMainGroup(mixed(mine, target, piece));
+}
+
+function mixed(mine: string, target: string, piece: Piece): string {
   const swap = (xml: string, tag: string) => {
     const a = first(xml, tag);
     const b = first(target, tag);

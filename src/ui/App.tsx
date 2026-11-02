@@ -20,6 +20,7 @@ import { isTauri, openDb } from "../data/db";
 import { MODE_TEXT, message, signed } from "./format";
 import { loadGemPrices, loadLeagues, openLink, savedLeague, saveLeague } from "./market";
 import { analyse, calculate, passives, rareSearch, upgrades } from "./pob";
+import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
@@ -363,6 +364,17 @@ function BuildView(props: {
 
       {latest.stats && (
         <DeepAnalysis key={`a${latest.id}`} mode={mode} league={league} disabled={props.disabled} onRun={props.onAnalyse} />
+      )}
+
+      {latest.stats && (
+        <CompareBuilds
+          key={`c${latest.id}`}
+          code={latest.code}
+          goal={goal}
+          mode={mode}
+          league={league}
+          disabled={props.disabled}
+        />
       )}
 
       {latest.stats && (

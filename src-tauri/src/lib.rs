@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use pob_engine::{Analysis, BuildStats, Engine, ItemTrial, Mode, Passives, RareSearch, StatWeight, Upgrades};
+use pob_engine::{Analysis, BuildStats, Compared, Engine, ItemTrial, Mode, Passives, RareSearch, StatWeight, Upgrades};
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -90,9 +90,42 @@ async fn pob_rare_search(
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// A build's numbers with the config in `mode`, the main skill in part `skill_part` if given (build comparison).
+#[tauri::command]
+async fn pob_calculate_mode(app: tauri::AppHandle, xml: String, mode: Mode, skill_part: Option<u32>) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.calculate(&xml, mode, skill_part))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
+/// My build against a target build (a guide, a ladder character), slot by slot.
+#[tauri::command]
+async fn pob_compare(
+    app: tauri::AppHandle,
+    xml: String,
+    target: String,
+    mode: Mode,
+    target_skill_part: Option<u32>,
+) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.compare(&xml, &target, mode, target_skill_part))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Sites the app reads market data from (design doc §4): public pages only, no login.
 fn market_url_allowed(url: &str) -> bool {
     url.starts_with("https://poe.ninja/poe1/api/")
+}
+
+/// Build links the app reads a PoB code from (design doc §3.0): pages that are
+/// the code itself. poe.ninja's character data comes through `market_get`.
+fn build_link_allowed(url: &str) -> bool {
+    let raw = |prefix: &str| url.strip_prefix(prefix).is_some_and(|id| !id.is_empty() && !id.contains(['/', '?', '#']));
+    raw("https://pastebin.com/raw/")
+        || url
+            .strip_prefix("https://pobb.in/")
+            .and_then(|rest| rest.strip_suffix("/raw"))
+            .is_some_and(|id| !id.is_empty() && !id.contains(['/', '?', '#']))
 }
 
 /// Fetches public market data (poe.ninja prices and leagues) as text.
@@ -101,6 +134,19 @@ async fn market_get(url: String) -> Result<String, String> {
     if !market_url_allowed(&url) {
         return Err(format!("Not a market data address: {url}"));
     }
+    fetch_text(&url).await
+}
+
+/// Fetches the PoB code a build link holds (pobb.in or pastebin raw page).
+#[tauri::command]
+async fn build_link_get(url: String) -> Result<String, String> {
+    if !build_link_allowed(&url) {
+        return Err(format!("Not a build link the app reads: {url}"));
+    }
+    fetch_text(&url).await
+}
+
+async fn fetch_text(url: &str) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
             "POECheetah/",
@@ -110,7 +156,7 @@ async fn market_get(url: String) -> Result<String, String> {
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
-    let response = client.get(&url).send().await.map_err(|e| format!("Could not reach {url}: {e}"))?;
+    let response = client.get(url).send().await.map_err(|e| format!("Could not reach {url}: {e}"))?;
     let status = response.status();
     if !status.is_success() {
         return Err(format!("{url} answered {status}"));
@@ -144,7 +190,10 @@ pub fn run() {
             pob_passives,
             pob_upgrades,
             pob_rare_search,
-            market_get
+            pob_calculate_mode,
+            pob_compare,
+            market_get,
+            build_link_get
         ])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
@@ -159,6 +208,19 @@ mod tests {
         for (i, m) in migrations().iter().enumerate() {
             assert_eq!(m.version, i as i64 + 1);
         }
+    }
+
+    #[test]
+    fn build_links_are_only_raw_code_pages() {
+        assert!(build_link_allowed("https://pobb.in/AbC-12_x/raw"));
+        assert!(build_link_allowed("https://pastebin.com/raw/Xy12Ab"));
+        assert!(!build_link_allowed("https://pobb.in/AbC"));
+        assert!(!build_link_allowed("https://pobb.in//raw"));
+        assert!(!build_link_allowed("https://pobb.in/a/b/raw"));
+        assert!(!build_link_allowed("https://pastebin.com/raw/"));
+        assert!(!build_link_allowed("https://pastebin.com/raw/a/../b"));
+        assert!(!build_link_allowed("http://pastebin.com/raw/Xy12Ab"));
+        assert!(!build_link_allowed("https://pastebin.com.example.com/raw/Xy"));
     }
 
     #[test]

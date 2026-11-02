@@ -8,6 +8,7 @@ import {
   fightVerdict,
   gemChanges,
   hybrid,
+  pinMainGroup,
   planCompare,
   readStages,
   treeChange,
@@ -124,6 +125,25 @@ describe("mixed builds", () => {
     expect(gear).not.toContain("my ring");
     expect(gear).toContain('<Socket itemId="9" nodeId="5"/>');
     expect(gear).not.toContain('itemId="3"');
+  });
+
+  it("leaves out granted skill groups so the main group survives the swap", () => {
+    const xml = `<Build mainSocketGroup="3"></Build>
+<Skills activeSkillSet="1"><SkillSet id="1">
+<Skill source="Tree:35011"><Gem nameSpec="Tiger"/></Skill>
+<Skill slot="Helmet"><Gem nameSpec="Aura"/></Skill>
+<Skill slot="Body Armour"><Gem nameSpec="Main"/></Skill>
+<Skill source="Item:3:Ring"><Gem nameSpec="Spiders"/></Skill>
+</SkillSet></Skills>`;
+    const out = pinMainGroup(xml);
+    expect(out).toContain('mainSocketGroup="2"');
+    expect(out).not.toContain("Tiger");
+    expect(out).not.toContain("Spiders");
+    expect(out).toContain("Aura");
+    const grantedMain = xml.replace('mainSocketGroup="3"', 'mainSocketGroup="1"');
+    expect(pinMainGroup(grantedMain)).toContain("Tiger");
+    expect(pinMainGroup(grantedMain)).toContain('mainSocketGroup="1"');
+    expect(pinMainGroup(MINE)).toBe(MINE);
   });
 
   it("counts the tree and gem changes", () => {

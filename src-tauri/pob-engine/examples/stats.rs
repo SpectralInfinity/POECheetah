@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -133,6 +133,12 @@ fn main() {
                 println!("  {key}: {a:?} -> {b:?}");
             }
         }
+        return;
+    }
+    if args.iter().any(|a| a == "--calc") {
+        let c = engine.calculate(&xml, mode, None).expect("calculate");
+        write_json(&c);
+        println!("{} ({}): DPS {} EHP {}", c["skill"]["name"], c["skill"]["part"], c["stats"]["CombinedDPS"], c["stats"]["TotalEHP"]);
         return;
     }
     if args.iter().any(|a| a == "--all") {

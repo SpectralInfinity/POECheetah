@@ -32,7 +32,7 @@ function preview(url: string): unknown {
 }
 
 /** Public market JSON, fetched by the Rust shell (identified in its User-Agent) and cached. */
-function getJson(url: string): Promise<unknown> {
+export function getJson(url: string): Promise<unknown> {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
   const data = isTauri()

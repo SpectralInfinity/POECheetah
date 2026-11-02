@@ -728,6 +728,8 @@ end
 --- Calculates the loaded build's main skill in another part, as PoB's skill part
 --- dropdown does. The loaded build no longer matches its XML afterwards.
 local function setSkillPart(part)
+	-- A missing part comes from Rust as JSON null (a light userdata, which is truthy).
+	if type(part) ~= "number" then return end
 	local ok, src = pcall(function() return build.calcsTab.mainEnv.player.mainSkill.activeEffect.srcInstance end)
 	if ok and src and src.skillPart ~= part then
 		src.skillPart = part
@@ -781,7 +783,7 @@ end
 --- PoB's numbers for build XML in `mode`, with the main skill in part `skillPart` if given.
 function api.calculate(xmlText, mode, skillPart)
 	if xmlText ~= loadedXml then load(xmlText) end
-	if skillPart then setSkillPart(skillPart) end
+	setSkillPart(skillPart)
 	return inMode(mode, function()
 		return { stats = numericStats(build.calcsTab.mainOutput), skill = skillInfo() }
 	end)
@@ -794,7 +796,7 @@ end
 function api.compare(myXml, targetXml, mode, targetSkillPart)
 	local function loadTarget()
 		load(targetXml)
-		if targetSkillPart then setSkillPart(targetSkillPart) end
+		setSkillPart(targetSkillPart)
 	end
 	loadTarget()
 	local target = inMode(mode, function()
