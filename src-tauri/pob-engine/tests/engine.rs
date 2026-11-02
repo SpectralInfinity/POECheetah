@@ -275,3 +275,29 @@ fn compares_a_build_with_a_target_slot_by_slot() {
     assert_eq!(engine.load_build(mine).expect("loads").stats, engine.load_build(mine).expect("loads again").stats);
     assert_eq!(dps(&engine.calculate(&target, Mode::Configured, None).unwrap()["stats"]), dps(&configured["stats"]));
 }
+
+#[test]
+fn audits_charges_flasks_and_warnings_and_leaves_the_build_unchanged() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = witch_with_flask();
+    let before = engine.load_build(&xml).expect("build loads");
+    let a = engine.audit(&xml).expect("audited");
+
+    let vars: Vec<&str> = a["options"].as_array().unwrap().iter().map(|o| o["var"].as_str().unwrap()).collect();
+    assert!(vars.contains(&"usePowerCharges"), "{vars:?}");
+    let power = a["options"].as_array().unwrap().iter().find(|o| o["var"] == "usePowerCharges").unwrap();
+    assert_eq!(power["current"], "false");
+    assert_eq!(power["tries"][0]["value"], "true");
+    assert!(power["tries"][0]["stats"]["CombinedDPS"].as_f64().unwrap() > a["before"]["CombinedDPS"].as_f64().unwrap(), "power charges add crit");
+
+    let flask = &a["flasks"][0];
+    assert_eq!(flask["slot"], "Flask 1");
+    assert_eq!(flask["kind"], "Utility");
+    assert!(flask["without"]["CombinedDPS"].is_number());
+    let bases: Vec<&str> = flask["alternatives"].as_array().unwrap().iter().map(|x| x["base"].as_str().unwrap()).collect();
+    assert!(bases.contains(&"Sulphur Flask") && bases.contains(&"Silver Flask"), "{bases:?}");
+    assert!(a["dotCap"].as_f64().unwrap() > 1e7);
+    assert!(a["text"]["gems"].as_array().unwrap().iter().any(|g| g == "Fireball"));
+    assert_eq!(engine.load_build(&xml).expect("loads again").stats, before.stats);
+}

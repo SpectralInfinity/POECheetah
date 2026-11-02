@@ -312,6 +312,20 @@ Feared, 70 div?"); each is a feature the app could do itself:
 9. **Guides**: read a guide's PoB link (pobb.in, Maxroll planner) rather
    than its video; YouTube is only useful for the link in the description.
 
+**Built in session 7c (2026-11-02), items 13, 15, 18, 20 as the "Build
+audit" panel** (engine `audit`, `src/core/audit.ts`): the charges, buffs and
+Killed Recently the config sets, each tried the other way, with what in the
+build grants it (item, passive or gem text; on-kill sources and nothing at
+all both read "not true against a lone boss"); the stance's alternatives with
+their max hits, Blood Stance flagged on damage over time, Flesh and Stone
+noted; each flask's worth (PoB's `toggleFlask`), what it protects against,
+life flasks kept for skills that use their charges, the slot to spare and
+plain utility bases ranked for it (bases already worn left out); and PoB's
+blind spots: its own "exceeds in game limit" warnings, "deal damage faster",
+The Writhing Jar, Aspect of Arakaali, life flask charge sustain, flask
+uptime. Not yet: per-content flask sets, flask enchantments and quality,
+aura suggestions with reservation, the ladder's life flask count.
+
 Two PCOC Reliquarians compared the same day (3.7M vs 5.4M in PoB; the 5.0M
 poe.ninja shows is poison alone) added these checks for session 7's build
 comparison (item 6):

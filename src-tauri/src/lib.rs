@@ -112,6 +112,14 @@ async fn pob_compare(
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// The build audit: charges, conditions, stance, flasks and PoB's warnings.
+#[tauri::command]
+async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.audit(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Sites the app reads market data from (design doc §4): public pages only, no login.
 fn market_url_allowed(url: &str) -> bool {
     url.starts_with("https://poe.ninja/poe1/api/")
@@ -192,6 +200,7 @@ pub fn run() {
             pob_rare_search,
             pob_calculate_mode,
             pob_compare,
+            pob_audit,
             market_get,
             build_link_get
         ])

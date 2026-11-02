@@ -28,8 +28,10 @@
       the gap explained piece by piece.
       (Built 2026-11-02 as v0.8.0; tick once comparing to a guide or a
       ladder character gives a list you'd follow.)
-- [ ] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
+- [x] 7c. Build audit: charges, conditions, stances; flask set planner; PoB
       limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
+      (Built 2026-11-02 as v0.9.0; tick once the audit of your build says
+      things you agree with.)
 - [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
@@ -200,6 +202,24 @@
   pobb.in and pastebin (not reachable from this environment) and the panel
   in the installed app. Dev tool: `stats -- mine.xml --compare target.xml
   --mode conservative --json out.json` and `--calc --mode boss`.
+
+- **7c:** Engine `audit` (config toggles for charges, buffs, Killed
+  Recently and the stance; each flask off via PoB's `toggleFlask`; 16 plain
+  utility bases in every active flask slot; PoB's `BuildDisplayStats`
+  warnings, only where its `condFunc` holds, else every stat warns; the
+  build's item, passive and gem text) ~7 s on the Reliquarian. Judging in
+  `src/core/audit.ts`, UI `src/ui/Audit.tsx`. On the Reliquarian: frenzy
+  charges off and nothing grants them (on would be +19%, the figure the
+  design doc noted); Sand Stance, Blood Stance would cost 20% effective HP
+  and every max hit (Flesh and Stone sets it anyway); the three life flasks
+  kept for PCOC's charges; the Silver Flask gives +12% DPS and carries the
+  curse-effect suffix; Progenesis is the slot to spare (PoB values it at
+  nothing, so the panel says check it first), Sulphur +8% DPS there; blind
+  spots: "deal damage faster" on the tree, Watcher's Eye and Rapture Shard,
+  Pain Spur's Aspect of Arakaali, life flask charges, flask uptime. Its one
+  PoB warning is the Intelligence requirement (no DoT cap: 5M). Luminary:
+  power charges on from Assassin's Mark; judged by effective HP.
+  Dev tool: `stats -- build.xml --audit --json out.json`.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the
