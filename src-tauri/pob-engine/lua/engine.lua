@@ -937,6 +937,8 @@ function api.audit(xmlText)
 			local opt = findOption(var)
 			if opt and optionShown(var) then
 				local current = original[var]
+				-- An unset list option is PoB's default entry (e.g. Blood Stance).
+				if current == nil and opt.type == "list" and opt.list then current = opt.list[opt.defaultIndex or 1].val end
 				local tries = array({})
 				if opt.type == "check" then
 					local flipped = not current
@@ -954,7 +956,7 @@ function api.audit(xmlText)
 					var = var,
 					label = optionLabel(opt),
 					kind = opt.type,
-					current = opt.type == "list" and listLabel(opt, current or opt.defaultIndex and opt.list[opt.defaultIndex].val) or tostring(current == true),
+					current = opt.type == "list" and listLabel(opt, current) or tostring(current == true),
 					tries = tries,
 				}
 			end

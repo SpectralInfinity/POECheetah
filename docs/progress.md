@@ -32,6 +32,8 @@
       limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
       (Built 2026-11-02 as v0.9.0; tick once the audit of your build says
       things you agree with.)
+- [ ] 7d. Minion builds: rank spectre/golem builds by their minions' DPS
+      (added 2026-11-02; PoB's minion output isn't read yet).
 - [ ] 7b. Meta comparison with poe.ninja.
 - [ ] 8. Run tracker (game log).
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
@@ -220,6 +222,15 @@
   Pain Spur's Aspect of Arakaali, life flask charges, flask uptime. Its one
   PoB warning is the Intelligence requirement (no DoT cap: 5M). Luminary:
   power charges on from Assassin's Mark; judged by effective HP.
+  Owner's feedback, same day: Progenesis is kept on purpose (uniques are no
+  longer offered as the slot to spare); "Rage grants frenzy charges": PoB's
+  data has Rage as a melee support granting rage, and Blood Rage as the
+  frenzy-on-kill skill (already a source, marked on kill); the updated build
+  (`docs/test-builds/reliquarian-poison-95-update.txt`) has neither, and no
+  other frenzy source. On it the stance is unset, which PoB treats as Blood
+  Stance (the audit showed "nil" before the fix): Sand Stance would give
+  +25% effective HP and physical max hit 25.6k → 31.6k for 0% DPS, and
+  Blood Stance is flagged (94% of the damage is poison).
   Dev tool: `stats -- build.xml --audit --json out.json`.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
