@@ -286,3 +286,4 @@
 | 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |
 | 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
 | 2026-11-02 | 7a. Compare to a build or guide, build links | 40% → 84% | 21% → 27% | Same conversation as session 6's follow-ups; includes the roadmap split and checking against live poe.ninja ladder characters |
+| 2026-11-02 | 7c, 7b, 7d. Build audit; meta comparison; minion builds | 84% → (reset) → 66% | 27% → 39% | Same conversation, three sessions back to back; the 5-hour window reset in between, so only the weekly figure covers all three; includes the owner's feedback round on 7c and live poe.ninja checks |
