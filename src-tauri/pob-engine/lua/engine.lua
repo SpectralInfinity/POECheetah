@@ -856,4 +856,151 @@ function api.compare(myXml, targetXml, mode, targetSkillPart)
 	}
 end
 
+-- Build audit (design doc §3.12 items 13, 15, 18, 20): charges, conditions and
+-- stances the config sets, what each flask is worth, and PoB's own warnings.
+
+--- Config options the audit tries: charges, buffs and conditions a build often
+--- assumes, and the stance.
+local AUDIT_VARS = { "usePowerCharges", "useFrenzyCharges", "useEnduranceCharges", "buffOnslaught",
+	"buffArcaneSurge", "buffUnholyMight", "buffFortification", "buffTailwind", "buffElusive",
+	"conditionKilledRecently", "bloodSandStance" }
+
+--- Utility flask bases tried in each flask slot.
+local AUDIT_FLASKS = { "Silver Flask", "Sulphur Flask", "Diamond Flask", "Jade Flask", "Granite Flask",
+	"Quartz Flask", "Quicksilver Flask", "Bismuth Flask", "Amethyst Flask", "Ruby Flask", "Sapphire Flask",
+	"Topaz Flask", "Basalt Flask", "Aquamarine Flask", "Stibnite Flask", "Gold Flask" }
+
+local AUDIT_KEYS = { "CombinedDPS", "TotalEHP", "Life", "Mana", "ManaUnreserved",
+	"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken",
+	"ChaosMaximumHitTaken" }
+
+local displayStats = LoadModule("Modules/BuildDisplayStats")
+
+local function optionShown(var)
+	local ctrl = build.configTab.varControls[var]
+	if not ctrl then return false end
+	local ok, shown = pcall(function() return ctrl:IsShown() end)
+	return not ok or shown
+end
+
+--- What the build has that could make a charge or condition true: item and
+--- passive lines and enabled gem names (the app matches them by text).
+local function buildText()
+	local items = array({})
+	for slotName, slot in pairs(activeSlots()) do
+		local item = build.itemsTab.items[slot.selItemId]
+		if item then
+			items[#items + 1] = { slot = slot.label or slotName, name = item.name, raw = item:BuildRaw() }
+		end
+	end
+	local nodes = array({})
+	for _, node in pairs(build.spec.allocNodes) do
+		for _, line in ipairs(node.sd or {}) do nodes[#nodes + 1] = line end
+	end
+	local gems = array({})
+	for _, group in ipairs(build.skillsTab.socketGroupList) do
+		if group.enabled ~= false then
+			for _, gem in ipairs(group.gemList or {}) do
+				local name = gem.grantedEffect and gem.grantedEffect.name or gem.nameSpec
+				if name and gem.enabled ~= false then gems[#gems + 1] = name end
+			end
+		end
+	end
+	return { items = items, nodes = nodes, gems = gems }
+end
+
+--- PoB's own warnings on the main output (e.g. "Poison DPS exceeds in game limit").
+local function pobWarnings(output)
+	local out = array({})
+	for _, stat in ipairs(displayStats) do
+		local value = stat.stat and output[stat.stat]
+		-- PoB shows a stat (and so its warning) only when its condFunc holds.
+		local shown = value ~= nil and (not stat.condFunc or select(2, pcall(stat.condFunc, value, output)) == true)
+		if shown and stat.warnFunc then
+			local ok, text = pcall(stat.warnFunc, value, output)
+			if ok and text then out[#out + 1] = { stat = stat.stat, text = text } end
+		end
+	end
+	return out
+end
+
+--- The audit of build XML: each of AUDIT_VARS that applies to the build, with
+--- the stats for every value tried; each flask's worth (the build without it)
+--- and each utility base tried in its slot; PoB's warnings; the build's text.
+function api.audit(xmlText)
+	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode("configured", function(original)
+		local base = pick(build.calcsTab.mainOutput, AUDIT_KEYS)
+		local warnings = pobWarnings(build.calcsTab.mainOutput)
+		local options = array({})
+		for _, var in ipairs(AUDIT_VARS) do
+			local opt = findOption(var)
+			if opt and optionShown(var) then
+				local current = original[var]
+				local tries = array({})
+				if opt.type == "check" then
+					local flipped = not current
+					tries[1] = { value = tostring(flipped), stats = withConfig(original, { [var] = flipped or false },
+						function(out) return pick(out, AUDIT_KEYS) end) }
+				elseif opt.type == "list" then
+					for _, entry in ipairs(opt.list or {}) do
+						if entry.val ~= current then
+							tries[#tries + 1] = { value = entry.label, stats = withConfig(original, { [var] = entry.val },
+								function(out) return pick(out, AUDIT_KEYS) end) }
+						end
+					end
+				end
+				options[#options + 1] = {
+					var = var,
+					label = optionLabel(opt),
+					kind = opt.type,
+					current = opt.type == "list" and listLabel(opt, current or opt.defaultIndex and opt.list[opt.defaultIndex].val) or tostring(current == true),
+					tries = tries,
+				}
+			end
+		end
+		withConfig(original, {}, function() end)
+
+		build.itemsTab:UpdateSockets()
+		local calcFunc = build.calcsTab:GetMiscCalculator()
+		local flasks = array({})
+		for slotName, slot in pairs(activeSlots()) do
+			local item = build.itemsTab.items[slot.selItemId]
+			if slotName:match("^Flask") and item and item.type == "Flask" then
+				local alternatives = array({})
+				if slot.active then
+					for _, baseName in ipairs(AUDIT_FLASKS) do
+						local alt = new("Item", "Rarity: NORMAL\n" .. baseName .. "\nQuality: 20")
+						if alt.base then
+							alternatives[#alternatives + 1] = { base = baseName,
+								stats = pick(calcFunc({ repSlotName = slotName, repItem = alt }), AUDIT_KEYS) }
+						end
+					end
+				end
+				flasks[#flasks + 1] = {
+					slot = slot.label or slotName,
+					name = item.name,
+					base = item.baseName,
+					kind = item.base and item.base.subType or "",
+					active = slot.active and true or false,
+					raw = item:BuildRaw(),
+					without = slot.active and pick(calcFunc({ toggleFlask = item }), AUDIT_KEYS) or nil,
+					alternatives = alternatives,
+				}
+			end
+		end
+		table.sort(flasks, function(a, b) return a.slot < b.slot end)
+
+		return {
+			before = base,
+			skill = skillInfo(),
+			options = options,
+			flasks = flasks,
+			warnings = warnings,
+			dotCap = data.misc.DotDpsCap,
+			text = buildText(),
+		}
+	end)
+end
+
 return api

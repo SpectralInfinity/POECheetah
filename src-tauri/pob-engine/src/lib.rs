@@ -242,6 +242,13 @@ impl Engine {
         self.json("compare", vec![my_xml.into(), target_xml.into(), mode.as_str().into(), target_skill_part.into()])
     }
 
+    /// The build audit: charges, conditions and the stance the config sets
+    /// (each tried the other way), each flask's worth and utility flasks tried
+    /// in its slot, PoB's own warnings, and the build's item, passive and gem text.
+    pub fn audit(&self, xml: &str) -> Result<Compared, String> {
+        self.json("audit", vec![xml.into()])
+    }
+
     fn json(&self, name: &'static str, args: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
         let (reply, result) = mpsc::channel();
         self.jobs
@@ -278,6 +285,7 @@ impl Api {
             "upgrades" => "try items",
             "calculate" => "calculate the build",
             "compare" => "compare the builds",
+            "audit" => "audit the build",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));
