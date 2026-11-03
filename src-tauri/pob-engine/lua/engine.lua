@@ -71,6 +71,32 @@ local function mainSkillName()
 	return ok and name or nil
 end
 
+--- The minions' damage when the main skill is a minion skill (design doc §7,
+--- row 7d): PoB keeps it in `output.Minion`, per minion, and the player's own
+--- CombinedDPS is 0. Returns per-minion DPS and the number of minions at once
+--- (PoB's active minion limit), or nil when the build deals damage itself.
+local function minionDamage(output)
+	local m = type(output.Minion) == "table" and output.Minion
+	if not m or (output.CombinedDPS or 0) > 0 then return nil end
+	local dps = m.CombinedDPS or m.TotalDPS
+	if type(dps) ~= "number" or dps ~= dps or dps <= 0 then return nil end
+	return dps, math.max(1, output.ActiveMinionLimit or 1)
+end
+
+--- Adds the minions' damage: `CombinedDPS` becomes theirs (per minion times
+--- the active limit), so every advisor ranks a minion build by it, and
+--- `MinionDPS`, `MinionCount` and `MinionDamage` (1) say so.
+local function withMinions(stats, output)
+	local dps, count = minionDamage(output)
+	if dps then
+		stats.CombinedDPS = dps * count
+		stats.MinionDPS = dps
+		stats.MinionCount = count
+		stats.MinionDamage = 1
+	end
+	return stats
+end
+
 local function numericStats(output)
 	local stats = {}
 	for key, value in pairs(output) do
@@ -78,7 +104,17 @@ local function numericStats(output)
 			stats[key] = value
 		end
 	end
-	return stats
+	return withMinions(stats, output)
+end
+
+--- 1 when the main skill raises minions but PoB has none to calculate (e.g.
+--- Raise Spectre with no spectre chosen): its damage is unknown, not zero.
+local function minionMissing()
+	local ok, missing = pcall(function()
+		local skill = build.calcsTab.mainEnv.player.mainSkill
+		return skill.skillFlags.minion and not skill.minion
+	end)
+	return ok and missing and 1 or nil
 end
 
 local loadedXml
@@ -100,7 +136,9 @@ end
 --- Calcs tab show), the main skill and PoB's console messages.
 function api.loadBuild(xmlText)
 	load(xmlText)
-	return { stats = numericStats(build.calcsTab.mainOutput), mainSkill = mainSkillName(), messages = messages }
+	local stats = numericStats(build.calcsTab.mainOutput)
+	stats.MinionMissing = minionMissing()
+	return { stats = stats, mainSkill = mainSkillName(), messages = messages }
 end
 
 --- Calculates the build with an item (its text as copied in game or from the
@@ -161,7 +199,12 @@ local function pick(output, keys)
 			out[key] = value
 		end
 	end
-	return out
+	return withMinions(out, output)
+end
+
+--- The build's DPS, the minions' for a minion skill.
+local function dpsOf(output)
+	return pick(output, { "CombinedDPS" }).CombinedDPS or 0
 end
 
 local DEFENCE_KEYS = { "TotalEHP", "PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken",
@@ -226,7 +269,7 @@ local function rankSupports(maxCandidates)
 	local group = mainSocketGroup()
 	local mainSkill = build.calcsTab.mainEnv.player.mainSkill
 	if not group or not mainSkill then return nil end
-	local base = build.calcsTab.mainOutput.CombinedDPS or 0
+	local base = dpsOf(build.calcsTab.mainOutput)
 	if base <= 0 then return nil end
 
 	local current, inGroup = {}, {}
@@ -235,7 +278,7 @@ local function rankSupports(maxCandidates)
 		if gem.enabled ~= false and gem.gemData and gem.gemData.grantedEffect and gem.gemData.grantedEffect.support then
 			gem.enabled = false
 			recalc()
-			current[#current + 1] = { gem = gem, name = supportName(gem), dpsWithout = build.calcsTab.mainOutput.CombinedDPS or 0 }
+			current[#current + 1] = { gem = gem, name = supportName(gem), dpsWithout = dpsOf(build.calcsTab.mainOutput) }
 			gem.enabled = true
 		end
 	end
@@ -794,7 +837,9 @@ function api.calculate(xmlText, mode, skillPart)
 	if xmlText ~= loadedXml then load(xmlText) end
 	setSkillPart(skillPart)
 	return inMode(mode, function()
-		return { stats = numericStats(build.calcsTab.mainOutput), skill = skillInfo() }
+		local stats = numericStats(build.calcsTab.mainOutput)
+		stats.MinionMissing = minionMissing()
+		return { stats = stats, skill = skillInfo() }
 	end)
 end
 

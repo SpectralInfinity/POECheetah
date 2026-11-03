@@ -32,8 +32,9 @@
       limits flagged. (Split from 7 on 2026-11-02: too big for one session.)
       (Built 2026-11-02 as v0.9.0; tick once the audit of your build says
       things you agree with.)
-- [ ] 7d. Minion builds: rank spectre/golem builds by their minions' DPS
-      (added 2026-11-02; PoB's minion output isn't read yet).
+- [x] 7d. Minion builds: rank spectre/golem builds by their minions' DPS.
+      (Built 2026-11-02 as v0.11.0; tick once a spectre build of yours,
+      spectres chosen in PoB, shows their DPS and advice for it.)
 - [x] 7b. Meta comparison with poe.ninja.
       (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
       installed app and the list matches what you see on poe.ninja.)
@@ -251,6 +252,18 @@
   changed between two searches the same day: the app reads the hashes from
   each search. Not checked: the panel in the installed app.
 
+- **7d:** Engine `withMinions` (in `numericStats` and `pick`, so every
+  result) and `minionMissing`; health check "No minion for Path of Building
+  to calculate"; the build view says when DPS is the minions'. On a level
+  100 spectre Necromancer from the Allflame ladder: poe.ninja's export has
+  no `skillMinion` and no `<Spectre>` list, so PoB has no minion (DPS 0, now
+  flagged); with a spectre chosen by hand (Metadata/Monsters/Axis/AxisCaster,
+  arbitrary) PoB gives 7.0k per spectre × 14 = 98.4k, and the passive
+  advisor ranks minion nodes. Engine tests: Summon Raging Spirit on the test
+  witch (DPS = per minion × count), Raise Spectre with none chosen
+  (MinionMissing). The owner's builds are unchanged (PCOC deals its own
+  damage; the Luminary's Flame Link isn't a minion skill).
+
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the
   endpoints; decoders in `scripts/research/poe_ninja_builds.py`): 29,537
@@ -273,3 +286,4 @@
 | 2026-10-10 | 5. Item upgrade advisor, Bossing goal, gem prices, flasks | ? → 74% | 21% → 27% | New conversation; includes checking against live poe.ninja once the environment allowed it |
 | 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
 | 2026-11-02 | 7a. Compare to a build or guide, build links | 40% → 84% | 21% → 27% | Same conversation as session 6's follow-ups; includes the roadmap split and checking against live poe.ninja ladder characters |
+| 2026-11-02 | 7c, 7b, 7d. Build audit; meta comparison; minion builds | 84% → (reset) → 66% | 27% → 39% | Same conversation, three sessions back to back; the 5-hour window reset in between, so only the weekly figure covers all three; includes the owner's feedback round on 7c and live poe.ninja checks |
