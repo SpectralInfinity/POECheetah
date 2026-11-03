@@ -504,6 +504,21 @@ GGG's rule of thumb for third-party tools:
 | GGG OAuth API | Characters, stash (§3.5) | **Requires registering the app with GGG, reviewed by hand. Apply well before session 6.** Desktop apps use the public-client flow with PKCE |
 | `Client.txt` | Runs (§3.4) | Local file, read only |
 
+**Session cookie for the owner's own account (owner's decision, 2026-11-03,
+replacing the 2026-10-10 rule below for this use):** the app is used
+personally, locally, on the owner's account, and GGG isn't registering new
+OAuth applications ("We are currently unable to process new applications",
+developer docs, 2026-11-03). So §3.5 reads the account with the owner's
+POESESSID, as older stash tools did: kept only in Windows Credential Manager
+(Rust `account.rs`, `keyring`), never readable by the web page, never logged
+or committed, sent only to `www.pathofexile.com/character-window/`
+(`get-account-name`, `get-characters`, `get-items`, `get-stash-items`), at
+most one request per 2.1 s and within GGG's rate-limit headers (stash reads,
+2026-11-03: 30 a minute, 90 per 30 minutes, 180 per 2 hours). Logging out of
+the website ends the cookie; the app then asks for it again. The OAuth flow
+(public client, PKCE, 127.0.0.1 redirect) stays the way for anyone else, once
+GGG registers apps again.
+
 **No passwords, no session cookies (decided 2026-10-10).** The app never asks
 for the GGG password or the `POESESSID` cookie: logging in on the user's behalf
 breaks GGG's terms and risks the account, and the cookie gives full account

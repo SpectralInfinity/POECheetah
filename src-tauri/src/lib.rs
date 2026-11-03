@@ -1,3 +1,5 @@
+mod account;
+
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -286,7 +288,11 @@ pub fn run() {
             market_get_bytes,
             build_link_get,
             log_candidates,
-            log_read
+            log_read,
+            account::poe_session_set,
+            account::poe_session_clear,
+            account::poe_session_status,
+            account::poe_account_get
         ])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
