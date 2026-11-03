@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::OnceLock;
 
 use pob_engine::{Analysis, BuildStats, Compared, Engine, ItemTrial, Mode, Passives, RareSearch, StatWeight, Upgrades};
@@ -120,6 +121,72 @@ async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, Strin
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Where the game keeps its log on Windows (standalone and Steam installs),
+/// for the run tracker (design doc §3.4).
+const LOG_CANDIDATES: [&str; 4] = [
+    r"C:\Program Files (x86)\Grinding Gear Games\Path of Exile\logs\Client.txt",
+    r"C:\Program Files\Grinding Gear Games\Path of Exile\logs\Client.txt",
+    r"C:\Program Files (x86)\Steam\steamapps\common\Path of Exile\logs\Client.txt",
+    r"C:\Program Files\Steam\steamapps\common\Path of Exile\logs\Client.txt",
+];
+
+/// The usual places of the game's `Client.txt` that exist on this computer.
+#[tauri::command]
+fn log_candidates() -> Vec<String> {
+    LOG_CANDIDATES.iter().filter(|p| Path::new(p).is_file()).map(|p| p.to_string()).collect()
+}
+
+/// A chunk of the game log, from `from` to `to` (byte offsets); `size` is the file's size.
+#[derive(Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogChunk {
+    text: String,
+    from: u64,
+    to: u64,
+    size: u64,
+}
+
+/// Only the game's log may be read (design doc §4: Client.txt and nothing else).
+fn log_path_allowed(path: &str) -> bool {
+    Path::new(path).file_name().is_some_and(|n| n.eq_ignore_ascii_case("Client.txt"))
+}
+
+/// Reads the game log from byte `from` (new lines since the last read), or
+/// its last `tail` bytes when `from` is missing, at most `max` bytes. The log
+/// grows to hundreds of MB, so it's never read whole. A file smaller than
+/// `from` was replaced: reading starts over. Lines cut at the start are dropped.
+fn read_log(path: &str, from: Option<u64>, tail: u64, max: u64) -> Result<LogChunk, String> {
+    use std::io::{Read, Seek, SeekFrom};
+    if !log_path_allowed(path) {
+        return Err(format!("Not the game's log (Client.txt): {path}"));
+    }
+    let mut file = std::fs::File::open(path).map_err(|e| format!("Could not open {path}: {e}"))?;
+    let size = file.metadata().map_err(|e| e.to_string())?.len();
+    let start = match from {
+        Some(f) if f <= size => f,
+        Some(_) => 0,
+        None => size.saturating_sub(tail),
+    };
+    let len = (size - start).min(max);
+    file.seek(SeekFrom::Start(start)).map_err(|e| e.to_string())?;
+    let mut buf = vec![0; len as usize];
+    file.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    // Start at a line: drop a partial first line when reading from the middle.
+    let skip = if start > 0 && from.is_none() { buf.iter().position(|&b| b == b'\n').map_or(buf.len(), |i| i + 1) } else { 0 };
+    // End at a line: keep a partial last line for the next read.
+    let keep = buf.iter().rposition(|&b| b == b'\n').map_or(skip, |i| (i + 1).max(skip));
+    let text = String::from_utf8_lossy(&buf[skip..keep]).into_owned();
+    Ok(LogChunk { text, from: start + skip as u64, to: start + keep as u64, size })
+}
+
+/// The game log's new lines since `from`, or its last `tail` bytes (run tracker).
+#[tauri::command]
+async fn log_read(path: String, from: Option<u64>, tail: Option<u64>) -> Result<LogChunk, String> {
+    tauri::async_runtime::spawn_blocking(move || read_log(&path, from, tail.unwrap_or(8 << 20), 16 << 20))
+        .await
+        .map_err(|e| format!("Could not read the log: {e}"))?
+}
+
 /// Sites the app reads market data from (design doc §4): public pages only, no login.
 fn market_url_allowed(url: &str) -> bool {
     url.starts_with("https://poe.ninja/poe1/api/")
@@ -217,7 +284,9 @@ pub fn run() {
             pob_audit,
             market_get,
             market_get_bytes,
-            build_link_get
+            build_link_get,
+            log_candidates,
+            log_read
         ])
         .run(tauri::generate_context!())
         .expect("error while running POECheetah");
@@ -232,6 +301,35 @@ mod tests {
         for (i, m) in migrations().iter().enumerate() {
             assert_eq!(m.version, i as i64 + 1);
         }
+    }
+
+    #[test]
+    fn reads_only_the_game_log_whole_lines_from_an_offset_or_the_tail() {
+        let dir = std::env::temp_dir().join(format!("poecheetah-log-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("Client.txt");
+        std::fs::write(&path, "line one\nline two\nline thr").unwrap();
+        let p = path.to_str().unwrap();
+
+        let all = read_log(p, Some(0), 0, 1 << 20).unwrap();
+        assert_eq!(all.text, "line one\nline two\n");
+        assert_eq!((all.from, all.to, all.size), (0, 18, 26));
+        // The partial last line comes with the next read, once finished.
+        std::fs::write(&path, "line one\nline two\nline three\n").unwrap();
+        let next = read_log(p, Some(all.to), 0, 1 << 20).unwrap();
+        assert_eq!(next.text, "line three\n");
+        // The tail starts at a whole line.
+        let tail = read_log(p, None, 12, 1 << 20).unwrap();
+        assert_eq!(tail.text, "line three\n");
+        // A smaller file was replaced: start over.
+        std::fs::write(&path, "new\n").unwrap();
+        assert_eq!(read_log(p, Some(29), 0, 1 << 20).unwrap().text, "new\n");
+
+        let other = dir.join("secrets.txt");
+        std::fs::write(&other, "x\n").unwrap();
+        assert!(read_log(other.to_str().unwrap(), Some(0), 0, 1 << 20).is_err());
+        assert!(!log_path_allowed("C:\\Users\\me\\Documents\\notes.txt"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
