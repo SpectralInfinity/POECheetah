@@ -38,8 +38,13 @@
 - [x] 7b. Meta comparison with poe.ninja.
       (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
       installed app and the list matches what you see on poe.ninja.)
-- [ ] 8. Run tracker (game log).
-- [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
+- [x] 8. Run tracker (game log), with a run overlay and leveling speed.
+      (Built 2026-11-03 as v0.12.0; tick once a real play session shows
+      sensible maps per hour and deaths, in the panel and the overlay.)
+- [x] 9. Earnings: stash snapshots with the owner's session cookie, income
+      per hour and per map. (Built 2026-11-03 as v0.13.0; tick once your
+      stash's value and income look right in the installed app. The farming
+      advice part of §3.5 is still to do.)
 - [ ] 10. League mechanics (3.29 mercenaries).
 
 ## Session notes
@@ -263,6 +268,44 @@
   witch (DPS = per minion × count), Raise Spectre with none chosen
   (MinionMissing). The owner's builds are unchanged (PCOC deals its own
   damage; the Luminary's Flame Link isn't a minion skill).
+
+- **8:** Rust `log_read`/`log_candidates` (tested on a temp file: whole
+  lines, offsets, tail, a replaced file, other files refused);
+  `src/core/gamelog.ts` with a made-up `client-log.txt` fixture; UI
+  `src/ui/Runs.tsx` (panel and `#run-overlay` window), `src/ui/runTracker.ts`
+  (reads the last 8 MB, then follows every 2 s; both the panel and the
+  overlay read the file themselves). Line formats: "You have entered",
+  "has been slain", "is now level" and whispers match the open-source
+  poe-log-monitor's patterns; the "Generating level … area … with seed"
+  line (area ids and seeds) isn't in that parser; the owner's Client.txt
+  has it (2026-11-03: `[DEBUG Client N] Generating level 83 area
+  "MapWorldsPark" with seed N`), so maps are told apart by id and seed. The
+  name-only fallback (a Delve node entered from its hub would look like a
+  map) is only for logs without those lines. Fixed in the preview: following live
+  after a long break stretched the old session to now (the overlay showed a
+  36-hour map): a session now ends after 30 minutes without log lines.
+  Overlay window: frameless, transparent, always on top, no taskbar entry;
+  permissions `core:window:allow-start-dragging`,
+  `allow-set-ignore-cursor-events`, `allow-close` (the shell builds with them).
+
+- **9:** GGG isn't registering OAuth apps (developer docs, 2026-11-03), so
+  the owner chose their own POESESSID (design doc §4). Rust `account.rs`:
+  `keyring` (Windows Credential Manager; a mock store on Linux, so CI
+  compiles), `poe_session_set/clear/status` (the page can't read it back),
+  `poe_account_get` for four `character-window` pages only, one request per
+  2.1 s, GGG's `X-Rate-Limit-Ip` headers passed back (stash reads 30/min,
+  90/30 min, 180/2 h; seen live 2026-11-03, logged out: the pages answer
+  with the login page, which the app reads as "cookie expired").
+  poe.ninja: stackables moved to `economy/exchange/current/overview`
+  (`lines` id → `primaryValue` in chaos, joined to `items` id → name; Divine
+  400.7c on 2026-11-03); its item pages answer 404 for cards, scarabs and
+  the like now. `src/core/stash.ts` (prices, tab value, income, rate-limit
+  budget), migration 0002 `stash_snapshots`, `src/data/snapshots.ts`,
+  `src/ui/account.ts`, `src/ui/Earnings.tsx`. Not checked here: the live
+  account pages with a real cookie (only the owner can), the panel in the
+  installed app. A new league starts around 2026-11-13: league names come
+  from poe.ninja, prices will be thin at first, PoB needs its update (bump
+  `pob-version.txt`), and session 10 should follow that league.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

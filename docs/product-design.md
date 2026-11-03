@@ -166,7 +166,25 @@ replacing Cloak of Flame's conversion; Replica Mistwall (+11% EHP) cut it to
 dropping by more than 5% is a drawback ("Physical max hit 32k → 23k"), so
 Balanced and Bossing leave such items out and Damage/Defence flag them.
 
-### 3.4 Run tracker (game log)
+### 3.4 Run tracker (game log) (built in session 8)
+
+Built as: the "Run tracker" panel and a run overlay (2026-11-03). Rust
+`log_read` reads only a file named `Client.txt`, from a byte offset (new
+lines) or its last 8 MB, whole lines only; `log_candidates` checks the usual
+standalone and Steam install paths. `src/core/gamelog.ts` parses "You have
+entered X.", "Generating level N area "Id" with seed S" (when present: maps
+are told apart by id and seed; without it, any area entered from a hideout
+or town counts as a map, by name), "X has been slain.", "X (Class) is now
+level N", whispers and AFK. A run is one map through any number of portals;
+side areas opened from it count to it; time in hideouts and towns doesn't;
+a 30-minute break starts a new session; AFK time is left out. Shown: maps
+per hour, median time in a map, deaths (the character's only: named, or the
+one levelling) and deaths per map, levels per hour, time in hideout/town.
+The overlay (always on top, frameless, draggable, optional click-through)
+follows the log live: current area and its timer, maps per hour, deaths,
+level. Ideas for later from the same log: a trade sales log from whispers
+(earnings without OAuth, §3.5), league encounters and boss fight times from
+NPC dialogue lines, act timings when levelling.
 
 - Reads `logs/Client.txt` in the game folder (standalone and Steam installs
   differ; the user picks the folder once). Tails the file; never loads it all
@@ -176,7 +194,23 @@ Balanced and Bossing leave such items out and Damage/Defence flag them.
 - Gives: maps per hour, time per map, deaths per map type, leveling speed.
 - The log has **no** loot, damage or gear information; earnings come from §3.5.
 
-### 3.5 Earnings and farming advisor
+### 3.5 Earnings and farming advisor (session 9: earnings built)
+
+Built as (2026-11-03): the "Earnings" panel. The owner connects their
+account with their POESESSID (§4, owner's decision), chooses the stash tabs
+where loot lands, and takes snapshots: each chosen tab read once
+(`get-stash-items`), priced with poe.ninja (its exchange pages for
+currency, fragments, cards, scarabs, essences, fossils, resonators, oils,
+omens, delirium orbs, tattoos, artifacts: the item pages answer 404 for
+those since about 2026-11; uniques by name and base; invitations), stored in
+SQLite (`stash_snapshots`). Shown: net worth of the chosen tabs, income per
+hour since the first comparable snapshot (same league, same tabs), the last
+change, and income per map with the run tracker's maps in between. "After
+each map": a snapshot when back in the hideout or town after a map, at
+most every 3 minutes and only within GGG's rate-limit headers. Not yet: the
+farming advice itself (strategy inputs and outputs, the build's clear vs
+single-target), characters' inventories, a net-worth chart, rares and gems
+(no poe.ninja price), the trade-whisper sales log, custom prices.
 
 - Snapshots of stash value through GGG's official API (needs login, §4),
   priced with poe.ninja, taken between runs.
@@ -485,6 +519,21 @@ GGG's rule of thumb for third-party tools:
 | Official trade site API | Rare item prices | Reading search results needs GGG's OAuth login with the `account:trade` scope (as PoB's trader does, 2026); search links work logged out. The league list also refuses logged-out requests |
 | GGG OAuth API | Characters, stash (§3.5) | **Requires registering the app with GGG, reviewed by hand. Apply well before session 6.** Desktop apps use the public-client flow with PKCE |
 | `Client.txt` | Runs (§3.4) | Local file, read only |
+
+**Session cookie for the owner's own account (owner's decision, 2026-11-03,
+replacing the 2026-10-10 rule below for this use):** the app is used
+personally, locally, on the owner's account, and GGG isn't registering new
+OAuth applications ("We are currently unable to process new applications",
+developer docs, 2026-11-03). So §3.5 reads the account with the owner's
+POESESSID, as older stash tools did: kept only in Windows Credential Manager
+(Rust `account.rs`, `keyring`), never readable by the web page, never logged
+or committed, sent only to `www.pathofexile.com/character-window/`
+(`get-account-name`, `get-characters`, `get-items`, `get-stash-items`), at
+most one request per 2.1 s and within GGG's rate-limit headers (stash reads,
+2026-11-03: 30 a minute, 90 per 30 minutes, 180 per 2 hours). Logging out of
+the website ends the cookie; the app then asks for it again. The OAuth flow
+(public client, PKCE, 127.0.0.1 redirect) stays the way for anyone else, once
+GGG registers apps again.
 
 **No passwords, no session cookies (decided 2026-10-10).** The app never asks
 for the GGG password or the `POESESSID` cookie: logging in on the user's behalf

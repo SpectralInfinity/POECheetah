@@ -1,0 +1,16 @@
+{"core": {"items": [{"id": "chaos", "name": "Chaos Orb"}, {"id": "divine", "name": "Divine Orb"}], "rates": {"divine": 0.0025}, "primary": "chaos", "secondary": "divine"},
+ "lines": [
+  {"id": "chaos", "primaryValue": 1},
+  {"id": "divine", "primaryValue": 400},
+  {"id": "abyss-scarab-of-descending", "primaryValue": 2.5},
+  {"id": "the-doctor", "primaryValue": 900},
+  {"id": "nameless", "primaryValue": 5},
+  {"id": "worthless", "primaryValue": 0}
+ ],
+ "items": [
+  {"id": "chaos", "name": "Chaos Orb", "category": "Currency"},
+  {"id": "divine", "name": "Divine Orb", "category": "Currency"},
+  {"id": "abyss-scarab-of-descending", "name": "Abyss Scarab of Descending", "category": "Scarabs"},
+  {"id": "the-doctor", "name": "The Doctor", "category": "Cards"},
+  {"id": "worthless", "name": "Worthless Thing", "category": "Currency"}
+ ]}
