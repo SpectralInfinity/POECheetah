@@ -1,0 +1,9 @@
+{"numTabs": 4, "items": [
+ {"id": "i1", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameType": 5, "stackSize": 120, "x": 0, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i2", "name": "", "typeLine": "Divine Orb", "baseType": "Divine Orb", "frameType": 5, "stackSize": 3, "x": 1, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i3", "name": "<<set:MS>><<set:M>><<set:S>>Cloak of Flame", "typeLine": "Scholar's Robe", "baseType": "Scholar's Robe", "frameType": 3, "x": 2, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i4", "name": "Grim Coil", "typeLine": "Amethyst Ring", "baseType": "Amethyst Ring", "frameType": 2, "x": 3, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i5", "name": "", "typeLine": "Abyss Scarab of Descending", "baseType": "Abyss Scarab of Descending", "frameType": 5, "stackSize": 4, "x": 4, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i6", "name": "", "typeLine": "The Doctor", "baseType": "The Doctor", "frameType": 6, "stackSize": 2, "x": 5, "y": 0, "inventoryId": "Stash1"},
+ {"id": "i7", "name": "", "typeLine": "Chaos Orb", "baseType": "Chaos Orb", "frameType": 5, "stackSize": 30, "x": 0, "y": 1, "inventoryId": "Stash1"}
+]}

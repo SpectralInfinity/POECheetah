@@ -25,6 +25,7 @@ import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
 import { MetaComparison } from "./Meta";
 import { RunTracker } from "./Runs";
+import { Earnings } from "./Earnings";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
 import { ItemUpgrades, type RareSearchFn } from "./Upgrades";
@@ -418,6 +419,8 @@ function BuildView(props: {
       {latest.stats && previous?.stats && <Changes before={previous.stats} after={latest.stats} since={previous.addedAt} />}
 
       <RunTracker />
+
+      <Earnings league={league} />
 
       <section className="panel">
         <h3>Update this build</h3>

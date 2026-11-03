@@ -12,12 +12,20 @@ pub const DB_URL: &str = "sqlite:poecheetah.db";
 
 /// Migrations live in src/data/migrations so the TypeScript tests run the same SQL.
 pub fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "builds",
-        sql: include_str!("../../src/data/migrations/0001_builds.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "builds",
+            sql: include_str!("../../src/data/migrations/0001_builds.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "stash snapshots",
+            sql: include_str!("../../src/data/migrations/0002_stash_snapshots.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 /// Path of Building, started once (it takes a few seconds) and kept running.

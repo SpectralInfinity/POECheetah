@@ -1,0 +1,6 @@
+{"numTabs": 4, "tabs": [
+ {"n": "Currency", "i": 0, "id": "aa11", "type": "CurrencyStash", "selected": true},
+ {"n": "Dump", "i": 1, "id": "bb22", "type": "QuadStash"},
+ {"n": "Hidden", "i": 2, "id": "cc33", "type": "NormalStash", "hidden": true},
+ {"n": "Cards", "i": 3, "id": "dd44", "type": "DivinationCardStash"}
+], "items": []}

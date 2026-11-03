@@ -41,7 +41,10 @@
 - [x] 8. Run tracker (game log), with a run overlay and leveling speed.
       (Built 2026-11-03 as v0.12.0; tick once a real play session shows
       sensible maps per hour and deaths, in the panel and the overlay.)
-- [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
+- [x] 9. Earnings: stash snapshots with the owner's session cookie, income
+      per hour and per map. (Built 2026-11-03 as v0.13.0; tick once your
+      stash's value and income look right in the installed app. The farming
+      advice part of §3.5 is still to do.)
 - [ ] 10. League mechanics (3.29 mercenaries).
 
 ## Session notes
@@ -284,6 +287,25 @@
   Overlay window: frameless, transparent, always on top, no taskbar entry;
   permissions `core:window:allow-start-dragging`,
   `allow-set-ignore-cursor-events`, `allow-close` (the shell builds with them).
+
+- **9:** GGG isn't registering OAuth apps (developer docs, 2026-11-03), so
+  the owner chose their own POESESSID (design doc §4). Rust `account.rs`:
+  `keyring` (Windows Credential Manager; a mock store on Linux, so CI
+  compiles), `poe_session_set/clear/status` (the page can't read it back),
+  `poe_account_get` for four `character-window` pages only, one request per
+  2.1 s, GGG's `X-Rate-Limit-Ip` headers passed back (stash reads 30/min,
+  90/30 min, 180/2 h; seen live 2026-11-03, logged out: the pages answer
+  with the login page, which the app reads as "cookie expired").
+  poe.ninja: stackables moved to `economy/exchange/current/overview`
+  (`lines` id → `primaryValue` in chaos, joined to `items` id → name; Divine
+  400.7c on 2026-11-03); its item pages answer 404 for cards, scarabs and
+  the like now. `src/core/stash.ts` (prices, tab value, income, rate-limit
+  budget), migration 0002 `stash_snapshots`, `src/data/snapshots.ts`,
+  `src/ui/account.ts`, `src/ui/Earnings.tsx`. Not checked here: the live
+  account pages with a real cookie (only the owner can), the panel in the
+  installed app. A new league starts around 2026-11-13: league names come
+  from poe.ninja, prices will be thin at first, PoB needs its update (bump
+  `pob-version.txt`), and session 10 should follow that league.
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

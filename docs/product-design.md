@@ -194,7 +194,23 @@ NPC dialogue lines, act timings when levelling.
 - Gives: maps per hour, time per map, deaths per map type, leveling speed.
 - The log has **no** loot, damage or gear information; earnings come from §3.5.
 
-### 3.5 Earnings and farming advisor
+### 3.5 Earnings and farming advisor (session 9: earnings built)
+
+Built as (2026-11-03): the "Earnings" panel. The owner connects their
+account with their POESESSID (§4, owner's decision), chooses the stash tabs
+where loot lands, and takes snapshots: each chosen tab read once
+(`get-stash-items`), priced with poe.ninja (its exchange pages for
+currency, fragments, cards, scarabs, essences, fossils, resonators, oils,
+omens, delirium orbs, tattoos, artifacts: the item pages answer 404 for
+those since about 2026-11; uniques by name and base; invitations), stored in
+SQLite (`stash_snapshots`). Shown: net worth of the chosen tabs, income per
+hour since the first comparable snapshot (same league, same tabs), the last
+change, and income per map with the run tracker's maps in between. "After
+each map": a snapshot when back in the hideout or town after a map, at
+most every 3 minutes and only within GGG's rate-limit headers. Not yet: the
+farming advice itself (strategy inputs and outputs, the build's clear vs
+single-target), characters' inventories, a net-worth chart, rares and gems
+(no poe.ninja price), the trade-whisper sales log, custom prices.
 
 - Snapshots of stash value through GGG's official API (needs login, §4),
   priced with poe.ninja, taken between runs.
