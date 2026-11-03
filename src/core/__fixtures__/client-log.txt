@@ -1,0 +1,34 @@
+2026/11/01 18:00:00 100000 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 18:10:00 700000 1dbd2ee6 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:00:00 3700000 2caa1679 [DEBUG Client 4321] Generating level 68 area "HideoutCelestial" with seed 1
+2026/11/01 19:00:02 3700002 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:00:30 3700030 2caa1679 [DEBUG Client 4321] Generating level 83 area "MapWorldsCemetery" with seed 1112223
+2026/11/01 19:00:35 3700035 cffb0719 [INFO Client 4321] : You have entered Cemetery.
+2026/11/01 19:03:10 3700190 3ea8bd72 [INFO Client 4321] : Poison_Rel has been slain.
+2026/11/01 19:03:20 3700200 2caa1679 [DEBUG Client 4321] Generating level 68 area "HideoutCelestial" with seed 1
+2026/11/01 19:03:25 3700205 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:04:25 3700265 2caa1679 [DEBUG Client 4321] Generating level 83 area "MapWorldsCemetery" with seed 1112223
+2026/11/01 19:04:30 3700270 cffb0719 [INFO Client 4321] : You have entered Cemetery.
+2026/11/01 19:05:00 3700300 5c3e7f0a [INFO Client 4321] : Party_Friend has been slain.
+2026/11/01 19:06:30 3700390 4a1b2c3d [INFO Client 4321] : Poison_Rel (Scion) is now level 95
+2026/11/01 19:07:30 3700450 2caa1679 [DEBUG Client 4321] Generating level 68 area "HideoutCelestial" with seed 1
+2026/11/01 19:07:35 3700455 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:08:00 3700480 1234abcd [INFO Client 4321] @From <GUILD> Some_Buyer: Hi, I would like to buy your Cloak of Flame listed for 30 chaos in Allflame (stash tab "~price"; position: left 1, top 2)
+2026/11/01 19:08:35 3700515 2caa1679 [DEBUG Client 4321] Generating level 83 area "MapWorldsCrimsonTemple" with seed 3334445
+2026/11/01 19:08:40 3700520 cffb0719 [INFO Client 4321] : You have entered Crimson Temple.
+2026/11/01 19:10:40 3700640 2caa1679 [DEBUG Client 4321] Generating level 83 area "SideArea_VaalTemple" with seed 777
+2026/11/01 19:10:45 3700645 cffb0719 [INFO Client 4321] : You have entered Forgotten Grotto.
+2026/11/01 19:11:45 3700705 3ea8bd72 [INFO Client 4321] : Poison_Rel has been slain.
+2026/11/01 19:12:45 3700765 2caa1679 [DEBUG Client 4321] Generating level 83 area "MapWorldsCrimsonTemple" with seed 3334445
+2026/11/01 19:12:50 3700770 cffb0719 [INFO Client 4321] : You have entered Crimson Temple.
+2026/11/01 19:14:50 3700890 2caa1679 [DEBUG Client 4321] Generating level 68 area "HideoutCelestial" with seed 1
+2026/11/01 19:14:55 3700895 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:15:00 3700900 6b7c8d9e [INFO Client 4321] : AFK mode is now ON. Autoreply "This player is AFK."
+2026/11/01 19:25:00 3701500 6b7c8d9e [INFO Client 4321] : AFK mode is now OFF.
+2026/11/01 19:25:30 3701530 2caa1679 [DEBUG Client 4321] Generating level 68 area "Delve_Main" with seed 99
+2026/11/01 19:25:35 3701535 cffb0719 [INFO Client 4321] : You have entered Azurite Mine.
+2026/11/01 19:27:35 3701655 2caa1679 [DEBUG Client 4321] Generating level 83 area "Delve_Marker01_1" with seed 98
+2026/11/01 19:27:40 3701660 cffb0719 [INFO Client 4321] : You have entered Abyssal Depths.
+2026/11/01 19:30:40 3701840 2caa1679 [DEBUG Client 4321] Generating level 68 area "HideoutCelestial" with seed 1
+2026/11/01 19:30:45 3701845 cffb0719 [INFO Client 4321] : You have entered Celestial Hideout.
+2026/11/01 19:31:00 3701860 4a1b2c3d [INFO Client 4321] : Poison_Rel (Scion) is now level 96
