@@ -1,8 +1,8 @@
 // Run tracker (design doc §3.4): the game's log, `Client.txt`. It records
 // areas entered, deaths, level-ups and whispers, with times; never loot,
-// damage or gear. Line formats from community parsers and the owner's log
-// (the "Generating level … area … with seed" line isn't in every parser:
-// without it, maps are told apart by name only).
+// damage or gear. Line formats from community parsers; the owner's log
+// confirms the area generation line ("[DEBUG Client N] Generating level 83
+// area "MapWorldsPark" with seed N"), so maps are told apart by id and seed.
 
 export type LogEvent =
   | { kind: "generated"; at: number; level: number; areaId: string; seed: string }

@@ -17,6 +17,14 @@ describe("game log lines", () => {
     expect(e.length).toBe(parseLog(LOG).length);
   });
 
+  it("reads the area generation line as the game writes it (shape confirmed on the owner's log, 2026-11-03)", () => {
+    const line = '2026/07/11 21:14:05 81234567 1a2b3c4d [DEBUG Client 50123] Generating level 83 area "MapWorldsPark" with seed 123456789';
+    expect(parseLog(line)).toEqual([
+      { kind: "generated", at: new Date(2026, 6, 11, 21, 14, 5).getTime(), level: 83, areaId: "MapWorldsPark", seed: "123456789" },
+    ]);
+    expect(areaKind("Park", "MapWorldsPark")).toBe("map");
+  });
+
   it("tells hideouts, towns, maps and other content apart", () => {
     expect(areaKind("Celestial Hideout")).toBe("hideout");
     expect(areaKind("Lioneye's Watch")).toBe("town");

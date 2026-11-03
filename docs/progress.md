@@ -274,10 +274,11 @@
   overlay read the file themselves). Line formats: "You have entered",
   "has been slain", "is now level" and whispers match the open-source
   poe-log-monitor's patterns; the "Generating level … area … with seed"
-  line (area ids and seeds) isn't in that parser and couldn't be checked
-  here (poewiki unreachable): the tracker works without it, by area names,
-  but a Delve node or Heist entered from its hub then looks like a map.
-  Check on the owner's real Client.txt. Fixed in the preview: following live
+  line (area ids and seeds) isn't in that parser; the owner's Client.txt
+  has it (2026-11-03: `[DEBUG Client N] Generating level 83 area
+  "MapWorldsPark" with seed N`), so maps are told apart by id and seed. The
+  name-only fallback (a Delve node entered from its hub would look like a
+  map) is only for logs without those lines. Fixed in the preview: following live
   after a long break stretched the old session to now (the overlay showed a
   36-hour map): a session now ends after 30 minutes without log lines.
   Overlay window: frameless, transparent, always on top, no taskbar entry;
