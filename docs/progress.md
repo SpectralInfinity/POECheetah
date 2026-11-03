@@ -38,7 +38,9 @@
 - [x] 7b. Meta comparison with poe.ninja.
       (Built 2026-11-02 as v0.10.0; tick once the ladder loads in the
       installed app and the list matches what you see on poe.ninja.)
-- [ ] 8. Run tracker (game log).
+- [x] 8. Run tracker (game log), with a run overlay and leveling speed.
+      (Built 2026-11-03 as v0.12.0; tick once a real play session shows
+      sensible maps per hour and deaths, in the panel and the overlay.)
 - [ ] 9. Earnings and farming advisor (needs GGG OAuth approval).
 - [ ] 10. League mechanics (3.29 mercenaries).
 
@@ -263,6 +265,24 @@
   witch (DPS = per minion × count), Raise Spectre with none chosen
   (MinionMissing). The owner's builds are unchanged (PCOC deals its own
   damage; the Luminary's Flame Link isn't a minion skill).
+
+- **8:** Rust `log_read`/`log_candidates` (tested on a temp file: whole
+  lines, offsets, tail, a replaced file, other files refused);
+  `src/core/gamelog.ts` with a made-up `client-log.txt` fixture; UI
+  `src/ui/Runs.tsx` (panel and `#run-overlay` window), `src/ui/runTracker.ts`
+  (reads the last 8 MB, then follows every 2 s; both the panel and the
+  overlay read the file themselves). Line formats: "You have entered",
+  "has been slain", "is now level" and whispers match the open-source
+  poe-log-monitor's patterns; the "Generating level … area … with seed"
+  line (area ids and seeds) isn't in that parser and couldn't be checked
+  here (poewiki unreachable): the tracker works without it, by area names,
+  but a Delve node or Heist entered from its hub then looks like a map.
+  Check on the owner's real Client.txt. Fixed in the preview: following live
+  after a long break stretched the old session to now (the overlay showed a
+  36-hour map): a session now ends after 30 minutes without log lines.
+  Overlay window: frameless, transparent, always on top, no taskbar entry;
+  permissions `core:window:allow-start-dragging`,
+  `allow-set-ignore-cursor-events`, `allow-close` (the shell builds with them).
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

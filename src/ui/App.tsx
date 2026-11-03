@@ -24,6 +24,7 @@ import { BuildAudit } from "./Audit";
 import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
 import { MetaComparison } from "./Meta";
+import { RunTracker } from "./Runs";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
 import { ItemUpgrades, type RareSearchFn } from "./Upgrades";
@@ -415,6 +416,8 @@ function BuildView(props: {
       )}
 
       {latest.stats && previous?.stats && <Changes before={previous.stats} after={latest.stats} since={previous.addedAt} />}
+
+      <RunTracker />
 
       <section className="panel">
         <h3>Update this build</h3>

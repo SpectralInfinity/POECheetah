@@ -166,7 +166,25 @@ replacing Cloak of Flame's conversion; Replica Mistwall (+11% EHP) cut it to
 dropping by more than 5% is a drawback ("Physical max hit 32k → 23k"), so
 Balanced and Bossing leave such items out and Damage/Defence flag them.
 
-### 3.4 Run tracker (game log)
+### 3.4 Run tracker (game log) (built in session 8)
+
+Built as: the "Run tracker" panel and a run overlay (2026-11-03). Rust
+`log_read` reads only a file named `Client.txt`, from a byte offset (new
+lines) or its last 8 MB, whole lines only; `log_candidates` checks the usual
+standalone and Steam install paths. `src/core/gamelog.ts` parses "You have
+entered X.", "Generating level N area "Id" with seed S" (when present: maps
+are told apart by id and seed; without it, any area entered from a hideout
+or town counts as a map, by name), "X has been slain.", "X (Class) is now
+level N", whispers and AFK. A run is one map through any number of portals;
+side areas opened from it count to it; time in hideouts and towns doesn't;
+a 30-minute break starts a new session; AFK time is left out. Shown: maps
+per hour, median time in a map, deaths (the character's only: named, or the
+one levelling) and deaths per map, levels per hour, time in hideout/town.
+The overlay (always on top, frameless, draggable, optional click-through)
+follows the log live: current area and its timer, maps per hour, deaths,
+level. Ideas for later from the same log: a trade sales log from whispers
+(earnings without OAuth, §3.5), league encounters and boss fight times from
+NPC dialogue lines, act timings when levelling.
 
 - Reads `logs/Client.txt` in the game folder (standalone and Steam installs
   differ; the user picks the folder once). Tails the file; never loads it all

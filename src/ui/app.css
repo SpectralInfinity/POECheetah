@@ -406,3 +406,26 @@ ul.passives {
 .compare .drawback {
   color: var(--accent);
 }
+
+input.wide {
+  width: min(560px, 100%);
+}
+
+/* The run overlay window: transparent page, a small dark card. */
+html.overlay-page,
+html.overlay-page body {
+  background: transparent;
+}
+
+.overlay {
+  margin: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(21, 17, 14, 0.82);
+  border: 1px solid var(--line);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  cursor: move;
+  user-select: none;
+}
