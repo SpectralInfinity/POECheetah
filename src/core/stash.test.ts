@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { UniquePrices } from "./market";
 import {
   comparable,
+  mergePrices,
   income,
   ninjaExchangeUrl,
   parseAccountName,
@@ -31,6 +32,18 @@ describe("poe.ninja exchange prices", () => {
     expect(ninjaExchangeUrl("Some League", "Scarab")).toBe(
       "https://poe.ninja/poe1/api/economy/exchange/current/overview?league=Some%20League&type=Scarab",
     );
+  });
+});
+
+describe("merging price pages", () => {
+  it("skips pages that failed (a category the league dropped) instead of failing", () => {
+    const { prices, skipped } = mergePrices([
+      { type: "Currency", prices: new Map([["Chaos Orb", 1], ["Divine Orb", 400]]) },
+      { type: "Scarab", prices: new Error("poe.ninja answered 404") },
+      { type: "DivinationCard", prices: new Map([["The Doctor", 900]]) },
+    ]);
+    expect(Object.fromEntries(prices)).toEqual({ "Chaos Orb": 1, "Divine Orb": 400, "The Doctor": 900 });
+    expect(skipped).toEqual(["Scarab"]);
   });
 });
 

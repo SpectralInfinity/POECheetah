@@ -45,7 +45,8 @@
       per hour and per map. (Built 2026-11-03 as v0.13.0; tick once your
       stash's value and income look right in the installed app. The farming
       advice part of §3.5 is still to do.)
-- [ ] 10. League mechanics (3.29 mercenaries).
+- [ ] 10. League mechanics, retargeted to 3.30 (design doc §3.13): the
+      Wickerman, then Fates, then mercenaries.
 
 ## Session notes
 
