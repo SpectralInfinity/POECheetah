@@ -285,6 +285,24 @@ patch notes: names and numbers may change at launch (about 2026-11-13).
 3. **Run tracker:** new areas (The Swarmforge, the Coven Queen's arena,
    Atziri in the Temple) count to the map they're opened from; check the
    first real 3.30 log.
+**Session 10, part 1 built (2026-11-07, v0.14.0): the Wickerman.** Engine
+`modSets` adds sets of modifier lines to the build as a PoB custom
+modifier block (removed afterwards) and lists the lines PoB's parser
+doesn't understand; `src/core/wickerman.ts` reads a copied body part
+(name, slot, Lesser/normal/Greater, lines: the layout is the keynote
+tooltip's, to check on a real copy), keeps the attached parts per build,
+and says what each is worth (all parts vs all but that one: DPS, effective
+HP, life regenerated) and whether a candidate beats the part in its slot
+(Balanced/Bossing refuse drawbacks, max hits included). The "Wickerman"
+panel, and the Item check (panel and pop-out) answers a copied body part.
+On the owner's updated Reliquarian (no assumptions): "+50 to maximum Life"
+→ +88 life, +3.2% effective HP; "Regenerate 1% of Life per second" → life
+regen 31.6 → 61.2/s; "Nearby Enemies are Scorched" parses but adds 0%
+(poison); "You cannot be Stunned if you've been Stunned or Blocked…",
+"Enemies Chilled by your Hits can be Shattered as though Frozen" and
+"Enemies within 3 metres are Scorched" aren't understood by PoB 2.67.2.
+Next: Fates and Grim Fates (part 2), mercenaries (part 3).
+
 4. **Session 10 is retargeted to 3.30:** the Wickerman (rank body parts on
    the build: PoB's config takes custom modifier lines, so a part's lines
    can be calculated before PoB knows the Wickerman; copy a part to check

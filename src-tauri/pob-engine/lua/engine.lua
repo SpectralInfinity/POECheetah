@@ -762,7 +762,7 @@ end
 local SWAP_KEYS = { "CombinedDPS", "TotalEHP", "Life", "EnergyShield", "Mana",
 	"FireResist", "ColdResist", "LightningResist", "ChaosResist",
 	"PhysicalMaximumHitTaken", "FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken",
-	"ChaosMaximumHitTaken", "Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt" }
+	"ChaosMaximumHitTaken", "Str", "Dex", "Int", "ReqStr", "ReqDex", "ReqInt", "LifeRegenRecovery" }
 
 --- The main skill, the part of it calculated ("No Flask", "Life"…) and that part's number.
 local function skillInfo()
@@ -1056,6 +1056,50 @@ function api.audit(xmlText)
 			dotCap = data.misc.DotDpsCap,
 			text = buildText(),
 		}
+	end)
+end
+
+-- League effects as modifier lines (design doc §3.13): 3.30's Wickerman body
+-- parts are items whose lines apply to the character. PoB's config takes
+-- custom modifier lines, so they can be calculated before PoB knows them.
+
+--- Whether PoB's modifier parser understands a line (unknown lines count as nothing).
+local function parsesAsMod(line)
+	local ok, mods, extra = pcall(modLib.parseMod, line)
+	return ok and mods ~= nil and not extra
+end
+
+--- The build in `mode` with each set of modifier lines added (as a custom
+--- modifier block, removed again afterwards), and the lines PoB's parser
+--- doesn't understand.
+function api.modSets(xmlText, mode, sets)
+	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode(mode, function()
+		local configTab = build.configTab
+		local configSet = configTab.configSets[configTab.activeConfigSetId]
+		configSet.customModsList = configSet.customModsList or {}
+		local list = configSet.customModsList
+		local before = pick(build.calcsTab.mainOutput, SWAP_KEYS)
+		local results = array({})
+		for _, lines in ipairs(sets) do
+			local block = { title = "POE Cheetah trial", enabled = true, text = table.concat(lines, "\n") }
+			table.insert(list, block)
+			local ok, stats = pcall(function()
+				recalc()
+				return pick(build.calcsTab.mainOutput, SWAP_KEYS)
+			end)
+			for i = #list, 1, -1 do
+				if list[i] == block then table.remove(list, i) end
+			end
+			if not ok then error(stats, 0) end
+			local unparsed = array({})
+			for _, line in ipairs(lines) do
+				if not parsesAsMod(line) then unparsed[#unparsed + 1] = line end
+			end
+			results[#results + 1] = { stats = stats, unparsed = unparsed }
+		end
+		recalc()
+		return { before = before, results = results }
 	end)
 end
 

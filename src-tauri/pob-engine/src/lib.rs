@@ -249,6 +249,15 @@ impl Engine {
         self.json("audit", vec![xml.into()])
     }
 
+    /// The build with each set of modifier lines added (as PoB custom
+    /// modifiers, removed afterwards), with the config in `mode`, and which
+    /// lines PoB's parser doesn't understand. For league effects PoB doesn't
+    /// know yet, e.g. 3.30's Wickerman body parts.
+    pub fn mod_sets(&self, xml: &str, mode: Mode, sets: &[Vec<String>]) -> Result<Compared, String> {
+        let sets = serde_json::to_value(sets).map_err(|e| e.to_string())?;
+        self.json("modSets", vec![xml.into(), mode.as_str().into(), sets])
+    }
+
     fn json(&self, name: &'static str, args: Vec<serde_json::Value>) -> Result<serde_json::Value, String> {
         let (reply, result) = mpsc::channel();
         self.jobs
@@ -286,6 +295,7 @@ impl Api {
             "calculate" => "calculate the build",
             "compare" => "compare the builds",
             "audit" => "audit the build",
+            "modSets" => "add the modifiers",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));
