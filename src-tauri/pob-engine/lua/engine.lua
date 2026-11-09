@@ -1,4 +1,4 @@
--- Runs Path of Building headless inside POECheetah (design doc §5.1).
+-- Runs Path of Building headless inside POE Cheetah (design doc §5.1).
 -- Called once with the PoB folder (holding src/ and runtime/lua/) and the
 -- zlib functions implemented in Rust, and the metatable that makes a table
 -- serialize as a JSON array even when empty; returns the engine's API table.
@@ -123,7 +123,7 @@ local function load(xmlText)
 	messages = {}
 	loadedXml = nil
 	mainObject.promptMsg = nil
-	loadBuildFromXML(xmlText, "POECheetah")
+	loadBuildFromXML(xmlText, "POE Cheetah")
 	if mainObject.promptMsg then
 		local msg = mainObject.promptMsg
 		mainObject.promptMsg = nil

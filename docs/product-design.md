@@ -1,4 +1,4 @@
-# POECheetah — Product Design
+# POE Cheetah — Product Design
 
 Status: draft · Owner: SpectralInfinity · Last updated: 2026-10-10
 

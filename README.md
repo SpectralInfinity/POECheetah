@@ -20,4 +20,4 @@ npm run tauri dev  # the desktop app (needs Rust and, on Linux, WebKitGTK)
 Windows installers are built by GitHub Actions on every push (artifact
 `poecheetah-windows-<sha>`).
 
-POECheetah is not affiliated with or endorsed by Grinding Gear Games.
+POE Cheetah is not affiliated with or endorsed by Grinding Gear Games.

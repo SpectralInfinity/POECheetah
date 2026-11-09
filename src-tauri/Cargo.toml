@@ -1,7 +1,7 @@
 [package]
 name = "poecheetah"
 version = "0.14.0"
-description = "POECheetah: Path of Exile build and farming advisor"
+description = "POE Cheetah: Path of Exile build and farming advisor"
 edition = "2021"
 rust-version = "1.77.2"
 

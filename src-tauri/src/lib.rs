@@ -312,7 +312,7 @@ pub fn run() {
             account::poe_account_get
         ])
         .run(tauri::generate_context!())
-        .expect("error while running POECheetah");
+        .expect("error while running POE Cheetah");
 }
 
 #[cfg(test)]
