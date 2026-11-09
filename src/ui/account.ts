@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { formatPrice, ninjaItemsUrl, parseNinjaLines, type NinjaItemLine } from "../core/market";
 import {
   EXCHANGE_TYPES,
+  mergePrices,
   NAMED_ITEM_TYPES,
   ninjaExchangeUrl,
   parseAccountName,
@@ -56,18 +57,34 @@ export async function stashTabs(league: string, account: string): Promise<StashT
 }
 
 /** Every price a stash needs in `league`: poe.ninja's exchange pages, uniques, invitations; and the divine price. */
-export async function priceBook(league: string): Promise<{ book: PriceBook; divine: number | null }> {
-  const stackables = new Map<string, number>();
+export async function priceBook(league: string): Promise<{ book: PriceBook; divine: number | null; skipped: string[] }> {
+  const page = async (type: string, read: () => Promise<Map<string, number>>) => {
+    try {
+      return { type, prices: await read() };
+    } catch (e) {
+      return { type, prices: e instanceof Error ? e : new Error(String(e)) };
+    }
+  };
+  const pages = [];
   for (const type of EXCHANGE_TYPES) {
-    const json = isTauri() ? await getJson(ninjaExchangeUrl(league, type)) : previewExchange;
-    for (const [name, value] of parseExchange(json)) stackables.set(name, value);
+    pages.push(await page(type, async () => parseExchange(isTauri() ? await getJson(ninjaExchangeUrl(league, type)) : previewExchange)));
   }
   for (const type of NAMED_ITEM_TYPES) {
-    const lines = isTauri() ? parseNinjaLines<NinjaItemLine>(await getJson(ninjaItemsUrl(league, type))) : [];
-    for (const l of lines) if (l.chaosValue > 0) stackables.set(l.name, l.chaosValue);
+    pages.push(
+      await page(type, async () => {
+        const lines = isTauri() ? parseNinjaLines<NinjaItemLine>(await getJson(ninjaItemsUrl(league, type))) : [];
+        return new Map(lines.filter((l) => l.chaosValue > 0).map((l) => [l.name, l.chaosValue]));
+      }),
+    );
   }
+  const { prices: stackables, skipped } = mergePrices(pages);
+  if (stackables.size === 0) throw new Error(`poe.ninja has no prices for ${league} yet.`);
   const uniques = await loadUniqueMarket(league).catch(() => null);
-  return { book: new PriceBook(stackables, uniques?.prices ?? null), divine: stackables.get("Divine Orb") ?? uniques?.divine ?? null };
+  return {
+    book: new PriceBook(stackables, uniques?.prices ?? null),
+    divine: stackables.get("Divine Orb") ?? uniques?.divine ?? null,
+    skipped: uniques ? skipped : [...skipped, "uniques"],
+  };
 }
 
 /**

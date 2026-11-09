@@ -349,3 +349,27 @@ fn says_when_a_minion_skill_has_no_minion() {
     let calculated = engine.calculate(&xml, Mode::Conservative, None).expect("calculated");
     assert_eq!(calculated["stats"]["MinionMissing"], 1.0);
 }
+
+#[test]
+fn adds_modifier_lines_and_says_which_pob_doesnt_understand() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let before = engine.load_build(xml).expect("build loads");
+    let sets = vec![
+        vec!["+100 to maximum Life".to_string()],
+        vec!["+100 to maximum Life".to_string(), "Gain a Wickerman's blessing every Tuesday".to_string()],
+        vec![],
+    ];
+    let r = engine.mod_sets(xml, Mode::Configured, &sets).expect("calculated");
+    let life = |v: &serde_json::Value| v["Life"].as_f64().unwrap();
+    assert_eq!(life(&r["before"]), before.stats["Life"]);
+    assert!(life(&r["results"][0]["stats"]) > life(&r["before"]) + 99.0, "life added");
+    assert_eq!(r["results"][0]["unparsed"], serde_json::json!([]));
+    assert_eq!(r["results"][1]["unparsed"], serde_json::json!(["Gain a Wickerman's blessing every Tuesday"]));
+    assert_eq!(life(&r["results"][2]["stats"]), life(&r["before"]));
+    // The custom lines are gone afterwards.
+    assert_eq!(engine.load_build(xml).expect("loads again").stats, before.stats);
+    let again = engine.mod_sets(xml, Mode::Configured, &[vec![]]).expect("calculated");
+    assert_eq!(life(&again["results"][0]["stats"]), before.stats["Life"]);
+}

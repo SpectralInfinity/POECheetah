@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -132,6 +132,21 @@ fn main() {
                 let (a, b) = (trial.before.get(key), slot.stats.get(key));
                 println!("  {key}: {a:?} -> {b:?}");
             }
+        }
+        return;
+    }
+    if let Some(i) = args.iter().position(|a| a == "--mods") {
+        // A file of modifier lines; a blank line starts the next set.
+        let text = std::fs::read_to_string(&args[i + 1]).expect("read modifier lines");
+        let sets: Vec<Vec<String>> = text.split("\n\n").map(|b| b.lines().map(str::to_string).filter(|l| !l.trim().is_empty()).collect()).collect();
+        let r = engine.mod_sets(&xml, mode, &sets).expect("mod sets");
+        write_json(&r);
+        let get = |s: &serde_json::Value, k: &str| s[k].as_f64().unwrap_or(0.0);
+        for (set, res) in sets.iter().zip(r["results"].as_array().unwrap()) {
+            println!("{:?}: DPS {:+.1}% EHP {:+.1}% Life {:+.0} unparsed {}", set,
+                (get(&res["stats"], "CombinedDPS") / get(&r["before"], "CombinedDPS").max(1e-9) - 1.0) * 100.0,
+                (get(&res["stats"], "TotalEHP") / get(&r["before"], "TotalEHP") - 1.0) * 100.0,
+                get(&res["stats"], "Life") - get(&r["before"], "Life"), res["unparsed"]);
         }
         return;
     }

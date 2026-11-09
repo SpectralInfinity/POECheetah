@@ -1,4 +1,4 @@
-# POECheetah — Product Design
+# POE Cheetah — Product Design
 
 Status: draft · Owner: SpectralInfinity · Last updated: 2026-10-10
 
@@ -220,7 +220,7 @@ single-target), characters' inventories, a net-worth chart, rares and gems
   map mods it can't run) and market prices for strategy inputs and outputs
   (scarabs, fragments, etc.).
 
-### 3.6 League mechanics (e.g. 3.29 Luminary mercenaries)
+### 3.6 League mechanics (e.g. 3.29 Luminary mercenaries; 3.30: §3.13)
 
 - Researched when the session starts, not from memory: mechanics change
   every league. Simulated in PoB if PoB models them; otherwise a short
@@ -233,6 +233,81 @@ single-target), characters' inventories, a net-worth chart, rares and gems
   checking whether a newer PoB release models mercenaries; if not, the
   recommendation comes from researched rules, not PoB numbers. Test build:
   `docs/test-builds/luminary-support-97.txt`.
+
+### 3.13 Path of Exile 3.30 (Covens of Umbra) and what it changes here (added 2026-11-07)
+
+Source: a community summary of the 3.30 keynote (a Google Doc the owner
+shared, text and 24 of its 46 screenshots read on 2026-11-07), not GGG's
+patch notes: names and numbers may change at launch (about 2026-11-13).
+
+- **League mechanic: Fates.** Killing the pack at a Rite lets the player pick
+  Fate "cards"; up to 3 go on a boss to empower it, each adding a danger and
+  a reward (e.g. Crowkeeper: crow novas that leave delayed storms, "deals 30%
+  increased Damage against Enemies on Low Life", reward a unique jewel;
+  Conjurer: portals firing beams, "50% chance to inflict Withered for 2
+  seconds on Hit"). Matching reward icons across 3 Fates unlock combo
+  rewards; two copies of one Fate triple the rewards and lock the other
+  slots. Killing a Fate-empowered boss can grant a **Grim Fate** for a
+  pinnacle boss (e.g. Maven gains charges on hit, Sirus gets a random
+  Conqueror power, the Eater of Worlds gains 30% of its life as extra
+  energy shield). New pinnacle boss: the Coven Queen (Cursed Poppet).
+- **The Wickerman:** 4 slots (head, torso, arm, leg) for body parts dropped
+  by bosses (Lesser in the campaign, normal, Greater in the endgame), each
+  a permanent effect on the character while attached, e.g. Greater Golemic
+  Stone (torso): "You cannot be Stunned if you've been Stunned or Blocked a
+  Stunning Hit in the past 2 seconds"; Lesser Warden's Arm (Brutus): +x to
+  maximum Life; Greater Elder's Head: chilled enemies can be shattered;
+  Maven's Orrery: enemies within 3 metres are Scorched. Body parts are items
+  ("Take this to the Wickerman in a town or hideout to attach it").
+- **Endgame:** scarabs removed, replaced by **Threads of Creation** (a
+  stackable currency per mechanic, 100 per stack; up to 3 slots of up to 8
+  threads); scarab effects moved to a new 150-point Atlas tree; Allflame
+  removed (embers now enchant maps); Delirium and Viridian Wildwood become
+  map modifiers; Mirage returns; mechanics combine (Mercenaries + Abyss,
+  Strongboxes + Blight…); Heist, Delve and Vaal side area Atlas nodes gone.
+- **Items:** magic and rare items drop with Tiers ("Primeval Rapier (Tier
+  2)", maps "(Tier 12)"); items can be **twice corrupted** ("Twice
+  Corrupted", e.g. Kaom's Heart with no sockets and +1000 life); Soul Cores
+  imbue a level 20 gem with a level 1 support ("Supported by Level 1
+  Increased Area of Effect"); gear item rarity no longer adds currency or
+  gold (monster rarity does); new uniques Hide of the Vendigo, The Sword of
+  Ages, Dreadmaidens' Sacrament (Basalt Flask), Putrid Seed Mycelium Core
+  (a Large-socket item that grows 4 random passives when anointed).
+
+**What it means for the app:**
+1. **Path of Building's 3.30 release** is needed for the tree, the new
+   uniques, tiered and twice-corrupted items, Soul Core gems: bump
+   `src-tauri/pob-version.txt` when it ships, then check a copied tiered
+   item, a twice-corrupted unique and a Soul Core gem in the item check.
+2. **Earnings:** scarabs gone (poe.ninja's Scarab page will fail), Threads
+   new: a failed price page is now skipped and named, not fatal (done
+   2026-11-07); "Thread" is tried as a guess at poe.ninja's category.
+3. **Run tracker:** new areas (The Swarmforge, the Coven Queen's arena,
+   Atziri in the Temple) count to the map they're opened from; check the
+   first real 3.30 log.
+**Session 10, part 1 built (2026-11-07, v0.14.0): the Wickerman.** Engine
+`modSets` adds sets of modifier lines to the build as a PoB custom
+modifier block (removed afterwards) and lists the lines PoB's parser
+doesn't understand; `src/core/wickerman.ts` reads a copied body part
+(name, slot, Lesser/normal/Greater, lines: the layout is the keynote
+tooltip's, to check on a real copy), keeps the attached parts per build,
+and says what each is worth (all parts vs all but that one: DPS, effective
+HP, life regenerated) and whether a candidate beats the part in its slot
+(Balanced/Bossing refuse drawbacks, max hits included). The "Wickerman"
+panel, and the Item check (panel and pop-out) answers a copied body part.
+On the owner's updated Reliquarian (no assumptions): "+50 to maximum Life"
+→ +88 life, +3.2% effective HP; "Regenerate 1% of Life per second" → life
+regen 31.6 → 61.2/s; "Nearby Enemies are Scorched" parses but adds 0%
+(poison); "You cannot be Stunned if you've been Stunned or Blocked…",
+"Enemies Chilled by your Hits can be Shattered as though Frozen" and
+"Enemies within 3 metres are Scorched" aren't understood by PoB 2.67.2.
+Next: Fates and Grim Fates (part 2), mercenaries (part 3).
+
+4. **Session 10 is retargeted to 3.30:** the Wickerman (rank body parts on
+   the build: PoB's config takes custom modifier lines, so a part's lines
+   can be calculated before PoB knows the Wickerman; copy a part to check
+   it), then Fates and Grim Fates where they can be put in numbers
+   (Withered, a boss's extra energy shield), then mercenaries.
 
 ### 3.7 Build health check (added 2026-10-10, session 2)
 
@@ -611,7 +686,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4, 17, 19) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
-| 10 | League mechanics (§3.6), e.g. 3.29 mercenaries for Luminary | Merc recommendation for your build |
+| 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first, then Fates, then mercenaries | Your body parts ranked on your build; a copied body part says whether to attach it |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 

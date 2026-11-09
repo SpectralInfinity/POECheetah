@@ -45,7 +45,10 @@
       per hour and per map. (Built 2026-11-03 as v0.13.0; tick once your
       stash's value and income look right in the installed app. The farming
       advice part of §3.5 is still to do.)
-- [ ] 10. League mechanics (3.29 mercenaries).
+- [ ] 10. League mechanics, retargeted to 3.30 (design doc §3.13): the
+      Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
+      copy a real body part and see the app read it), then Fates, then
+      mercenaries.
 
 ## Session notes
 
@@ -306,6 +309,17 @@
   installed app. A new league starts around 2026-11-13: league names come
   from poe.ninja, prices will be thin at first, PoB needs its update (bump
   `pob-version.txt`), and session 10 should follow that league.
+
+- **10 (part 1, Wickerman):** 3.30 summary from the owner's Google Doc
+  (keynote notes; text plus 24 of 46 screenshots; docs.google.com and
+  lh7-rt.googleusercontent.com added to the cloud environment to read it),
+  written up as design doc §3.13. Earnings now skip a poe.ninja page that
+  fails (scarabs go in 3.30) and name it. Engine `modSets` (tested: life
+  added, an invented line reported as not understood, the build unchanged
+  afterwards), `LifeRegenRecovery` added to the swap stats; dev tool
+  `stats -- build.xml --mods lines.txt` (blank line between sets). Results
+  on the owner's build are in §3.13. Not checked: a real 3.30 body part's
+  copied text (the reader follows the keynote tooltip's layout).
 
 - **Research 2026-10-12 (not a session):** "a Luminary that clears The
   Feared for 70 div". Read poe.ninja's ladder (design doc §3.11 has the

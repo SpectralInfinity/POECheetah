@@ -25,6 +25,7 @@ import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
 import { MetaComparison } from "./Meta";
 import { RunTracker } from "./Runs";
+import { WickermanPanel } from "./Wickerman";
 import { Earnings } from "./Earnings";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
@@ -390,6 +391,10 @@ function BuildView(props: {
       )}
 
       {latest.stats && (
+        <WickermanPanel key={`w${build.id}`} buildId={build.id} code={latest.code} goal={goal} mode={mode} disabled={props.disabled} />
+      )}
+
+      {latest.stats && (
         <BuildAudit
           key={`b${latest.id}`}
           goal={goal}
@@ -412,7 +417,7 @@ function BuildView(props: {
       {latest.stats && (
         <ItemCheckPanel
           disabled={props.disabled}
-          ctx={{ buildName: build.name, code: latest.code, level: latest.summary.level, goal, mode, league }}
+          ctx={{ buildId: build.id, buildName: build.name, code: latest.code, level: latest.summary.level, goal, mode, league }}
         />
       )}
 

@@ -53,6 +53,7 @@ export function Earnings(props: { league: string }) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [latest, setLatest] = useState<TabValue[]>([]);
   const [divine, setDivine] = useState<number | null>(null);
+  const [skipped, setSkipped] = useState<string[]>([]);
   const [auto, setAuto] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -111,6 +112,7 @@ export function Earnings(props: { league: string }) {
         if (!pick.length) throw new Error("Choose the stash tabs to count first.");
         const prices = await priceBook(league);
         setDivine(prices.divine);
+        setSkipped(prices.skipped);
         const { snapshot: s, values } = await takeSnapshot(league, name, pick, prices.book, setBusy);
         await store.add(s);
         setLatest(values);
@@ -218,6 +220,9 @@ export function Earnings(props: { league: string }) {
 
       {busy && <p className="muted small">{busy}</p>}
       {error && <p className="error">{error}</p>}
+      {skipped.length > 0 && (
+        <p className="muted small">poe.ninja had no prices for: {skipped.join(", ")} (counted at nothing this time).</p>
+      )}
 
       {last && (
         <div className="compare">

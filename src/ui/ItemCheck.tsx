@@ -20,6 +20,8 @@ import { message } from "./format";
 import { loadUniqueMarket, openLink, savedLeague } from "./market";
 import { FindingItem, StatChangeList } from "./parts";
 import { tryItem } from "./pob";
+import { readBodyPart, type CandidateVerdict } from "../core/wickerman";
+import { CandidateView, judgeWickerman, savedWickerman } from "./Wickerman";
 import { onSettingsChanged, savedCountAssumptions, savedGoal } from "./settings";
 
 /** How often the clipboard watch looks for a newly copied item. */
@@ -27,6 +29,8 @@ const POLL_MS = 1000;
 
 /** The build and settings an item is checked against. */
 export interface CheckContext {
+  /** The saved build's id (its Wickerman parts are kept per build). */
+  buildId: number;
   buildName: string;
   code: string;
   level: number;
@@ -64,6 +68,7 @@ async function uniquePrice(header: ItemHeader | null, league: string): Promise<s
  */
 function useItemCheck() {
   const [checked, setChecked] = useState<Checked | null>(null);
+  const [bodyPart, setBodyPart] = useState<CandidateVerdict | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const latest = useRef(0);
@@ -73,12 +78,22 @@ function useItemCheck() {
     setBusy(true);
     setError("");
     try {
+      // A 3.30 Wickerman body part: its worth over the part in its slot (design doc §3.13).
+      const part = readBodyPart(text);
+      if (part) {
+        const j = await judgeWickerman(ctx.code, ctx.mode, ctx.goal, savedWickerman(ctx.buildId), part);
+        if (run !== latest.current) return;
+        setChecked(null);
+        setBodyPart(j.candidate);
+        return;
+      }
       const header = readItemHeader(text);
       const [trial, price] = await Promise.all([
         tryItem(await decodeBuildCode(ctx.code), text, ctx.mode),
         uniquePrice(header, ctx.league),
       ]);
       if (run !== latest.current) return;
+      setBodyPart(null);
       setChecked({ text, header, trial, mode: ctx.mode, level: ctx.level, buildName: ctx.buildName, league: ctx.league, price });
     } catch (e) {
       if (run === latest.current) setError(message(e));
@@ -87,7 +102,7 @@ function useItemCheck() {
     }
   }, []);
 
-  return { checked, busy, error, check };
+  return { checked, bodyPart, busy, error, check };
 }
 
 /**
@@ -111,7 +126,7 @@ function useClipboardItems(enabled: boolean, onItem: (text: string) => void) {
       if (stopped || text === null || text === last.current) return;
       last.current = text;
       const header = readItemHeader(text);
-      if (header && isEquipment(header)) handler.current(text);
+      if ((header && isEquipment(header)) || readBodyPart(text)) handler.current(text);
     };
     void tick();
     const id = window.setInterval(tick, POLL_MS);
@@ -214,7 +229,7 @@ export function ItemCheckPanel(props: { ctx: CheckContext; disabled: boolean }) 
   const [text, setText] = useState("");
   const [watching, setWatching] = useState(false);
   const [popError, setPopError] = useState("");
-  const { checked, busy, error, check } = useItemCheck();
+  const { checked, bodyPart, busy, error, check } = useItemCheck();
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
   const lastText = useRef<string | null>(null);
@@ -271,6 +286,7 @@ export function ItemCheckPanel(props: { ctx: CheckContext; disabled: boolean }) 
       {popError && <p className="error">{popError}</p>}
       {error && <p className="error">{error}</p>}
       {checked && <CheckResult checked={checked} goal={ctx.goal} />}
+      {bodyPart && <CandidateView v={bodyPart} />}
     </section>
   );
 }
@@ -286,7 +302,7 @@ export function ItemCheckWindow() {
   const [goal, setGoal] = useState<Goal>(savedGoal());
   const [noBuild, setNoBuild] = useState(false);
   const [startError, setStartError] = useState("");
-  const { checked, busy, error, check } = useItemCheck();
+  const { checked, bodyPart, busy, error, check } = useItemCheck();
 
   useEffect(() => {
     document.title = "POE Cheetah · Item check";
@@ -310,6 +326,7 @@ export function ItemCheckWindow() {
       const g = savedGoal();
       setGoal(g);
       await check(text, {
+        buildId: build.id,
         buildName: build.name,
         code: build.latest.code,
         level: build.latest.summary.level,
@@ -344,12 +361,13 @@ export function ItemCheckWindow() {
       {startError && <p className="error">{startError}</p>}
       {noBuild && <p className="error">Add a build in the main window first.</p>}
       {error && <p className="error">{error}</p>}
+      {bodyPart && <CandidateView v={bodyPart} />}
       {checked ? (
         <>
           <p className="muted small">For {checked.buildName}</p>
           <CheckResult checked={checked} goal={goal} compact />
         </>
-      ) : (
+      ) : bodyPart ? null : (
         <p className="muted small">{watching ? WATCH_HINT : "Not watching the clipboard."}</p>
       )}
     </div>

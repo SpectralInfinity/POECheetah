@@ -77,6 +77,12 @@ export async function audit(xml: string): Promise<AuditResult> {
   return invoke<AuditResult>("pob_audit", { xml });
 }
 
+/** The build in `mode` with each set of modifier lines added (3.30 Wickerman parts), and lines PoB doesn't understand. */
+export async function modSets(xml: string, mode: Mode, sets: string[][]): Promise<{ before: Stats; results: { stats: Stats; unparsed: string[] }[] }> {
+  if (!isTauri()) return previewModSets(xml, mode, sets);
+  return invoke("pob_mod_sets", { xml, mode, sets });
+}
+
 /** Browser preview (`npm run dev`) has no engine: sample numbers that change with level. */
 function previewResult(xml: string): PobResult {
   const level = Number(xml.match(/<Build\b[^>]*\slevel="(\d+)"/)?.[1] ?? 90);
@@ -363,4 +369,22 @@ function previewAudit(xml: string): AuditResult {
       gems: ["Poisonous Concoction of Bouncing", "Flesh and Stone"],
     },
   };
+}
+
+/** Sample numbers: "+N to maximum Life" adds effective HP, "Regenerate N% of Life" regen; other lines aren't understood. */
+function previewModSets(xml: string, mode: Mode, sets: string[][]) {
+  const before = previewCalculated(xml, mode).stats;
+  const results = sets.map((lines) => {
+    const stats = { ...before };
+    const unparsed: string[] = [];
+    for (const line of lines) {
+      const life = line.match(/^\+(\d+) to maximum Life$/);
+      const regen = line.match(/^Regenerate ([\d.]+)% of Life per second$/i);
+      if (life) stats.TotalEHP = (stats.TotalEHP ?? 0) + Number(life[1]) * 18;
+      else if (regen) stats.LifeRegenRecovery = (stats.LifeRegenRecovery ?? 0) + Number(regen[1]) * 30;
+      else unparsed.push(line);
+    }
+    return { stats, unparsed };
+  });
+  return { before, results };
 }

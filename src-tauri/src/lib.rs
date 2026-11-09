@@ -123,6 +123,14 @@ async fn pob_compare(
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// The build with each set of modifier lines added (3.30 Wickerman body parts).
+#[tauri::command]
+async fn pob_mod_sets(app: tauri::AppHandle, xml: String, mode: Mode, sets: Vec<Vec<String>>) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.mod_sets(&xml, mode, &sets))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// The build audit: charges, conditions, stance, flasks and PoB's warnings.
 #[tauri::command]
 async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
@@ -292,6 +300,7 @@ pub fn run() {
             pob_calculate_mode,
             pob_compare,
             pob_audit,
+            pob_mod_sets,
             market_get,
             market_get_bytes,
             build_link_get,
@@ -303,7 +312,7 @@ pub fn run() {
             account::poe_account_get
         ])
         .run(tauri::generate_context!())
-        .expect("error while running POECheetah");
+        .expect("error while running POE Cheetah");
 }
 
 #[cfg(test)]

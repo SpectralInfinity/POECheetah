@@ -22,10 +22,31 @@ export const EXCHANGE_TYPES = [
   "DeliriumOrb",
   "Tattoo",
   "Artifact",
+  // 3.30 (Covens of Umbra) replaces scarabs with Threads of Creation; poe.ninja's
+  // category name isn't known before launch, so this is a guess, skipped if missing.
+  "Thread",
 ] as const;
 
 /** Item pages that still answer, priced by name (2026-11-03). */
 export const NAMED_ITEM_TYPES = ["Invitation"] as const;
+
+/**
+ * Merges price pages into one name → chaos map, skipping pages that failed:
+ * poe.ninja drops a category when the game drops it (scarabs in 3.30), and
+ * one missing page shouldn't stop a stash snapshot. Returns the skipped types.
+ */
+export function mergePrices(pages: { type: string; prices: Map<string, number> | Error }[]): {
+  prices: Map<string, number>;
+  skipped: string[];
+} {
+  const prices = new Map<string, number>();
+  const skipped: string[] = [];
+  for (const p of pages) {
+    if (p.prices instanceof Error) skipped.push(p.type);
+    else for (const [name, value] of p.prices) prices.set(name, value);
+  }
+  return { prices, skipped };
+}
 
 export const ninjaExchangeUrl = (league: string, type: string) =>
   `https://poe.ninja/poe1/api/economy/exchange/current/overview?league=${encodeURIComponent(league)}&type=${type}`;
