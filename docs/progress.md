@@ -49,6 +49,10 @@
       Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
       copy a real body part and see the app read it), then Fates, then
       mercenaries.
+- [ ] 11. Once Path of Building's 3.30 update is out: update PoB, then build
+      tiers and the main skill (design doc §3.14): tier picker, progression
+      table, compare by tier, main skill picker, Full DPS. Test build:
+      `docs/test-builds/goratha-fireball-radiation-rf.txt`.
 
 ## Session notes
 

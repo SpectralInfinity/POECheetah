@@ -347,6 +347,45 @@ with PoB's pinnacle-boss settings, and show both next to the configured
 number. Also rank alternative support gems for the main skill, pantheon
 choices and flask mods ("try every option in PoB and rank").
 
+### 3.14 Build tiers and the main skill (added 2026-11-15, owner's request)
+
+Found on a streamer's 3.30 build (`docs/test-builds/goratha-fireball-radiation-rf.txt`):
+one PoB code can hold several passive trees, item sets and skill sets, each
+with a title. Guides use them as tiers ("Leveling 1-28", "Leveling 28-60",
+"Leveling 68+", "Red Maps", "Chase Setup"; same titles across all three).
+The app calculates only the set that was active when the code was saved.
+Switching the active tree, skill set and item set is enough for PoB to
+calculate another tier (checked 2026-11-15 on that build: five tiers, 28k to
+1.2M DPS).
+
+1. **Tier picker.** List a build's tiers (trees, skill sets and item sets
+   matched by title; a set with no match is listed on its own and the others
+   stay as saved). Each saved build remembers its chosen tier; every panel
+   (passives, items, item check, audit, Wickerman, compare) calculates that
+   tier.
+2. **Progression table.** One row per tier: main skill, DPS, life, effective
+   HP, max hits, resists. Note when a leveling tier is calculated at the
+   build's single character level (the code stores one level; gem levels as
+   written).
+3. **Compare by tier.** Compare panel: pick the tier on either side (your
+   character against a guide's "Red Maps").
+4. **Main skill picker.** List every skill group with its own DPS (PoB
+   calculates triggered skills: Fireball on Spellslinger has a trigger rate,
+   1.31 per second on that build). Let the player choose the main skill per
+   build; flag when the saved main skill isn't the biggest damage source
+   (e.g. saved with Righteous Fire or a movement skill selected while an
+   auto-cast skill does the damage). Today the app uses the build's saved
+   `mainSocketGroup`.
+5. **Full DPS.** When the build ticks "Include in Full DPS" on several
+   groups (that build's Red Maps: Fire Trap and Righteous Fire, 1.58M against
+   1.22M for Fire Trap alone), show PoB's Full DPS next to the main skill's
+   and let the advisors rank by it.
+
+Skills PoB doesn't know yet (Fireball of Radiation in PoB 2.67.2; that build
+uses plain Fireball or Fire Trap as a stand-in, labelled in the skill
+group) are flagged, not guessed. Build this after PoB's 3.30 update, so the
+test build calculates its real skill.
+
 ### 3.10 Patch impact (added 2026-10-10)
 
 When the bundled PoB is updated for a patch, recalculate saved builds and
@@ -688,6 +727,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first, then Fates, then mercenaries | Your body parts ranked on your build; a copied body part says whether to attach it |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
+| 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
