@@ -51,7 +51,8 @@
       mercenaries.
 - [ ] 11. Once Path of Building's 3.30 update is out: update PoB, then build
       tiers and the main skill (design doc §3.14): tier picker, progression
-      table, compare by tier, main skill picker, Full DPS. Test build:
+      table, compare by tier, main skill picker, Full DPS, Righteous Fire
+      margin warning. Test build:
       `docs/test-builds/goratha-fireball-radiation-rf.txt`.
 
 ## Session notes

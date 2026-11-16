@@ -380,6 +380,20 @@ calculate another tier (checked 2026-11-15 on that build: five tiers, 28k to
    groups (that build's Red Maps: Fire Trap and Righteous Fire, 1.58M against
    1.22M for Fire Trap alone), show PoB's Full DPS next to the main skill's
    and let the advisors rank by it.
+6. **Righteous Fire margin warning** (build audit, §3.12). A build that
+   burns itself (Righteous Fire; also other self-damage PoB counts in
+   `TotalBuildDegen`) lives on fire resistance at its maximum and
+   regeneration above the burn. Show the margin (that build's Red Maps:
+   about 1,630 life/s regenerated against about 405 burnt, +1,226 net, at
+   90% fire resistance) and warn when it's thin or gone under what lowers it:
+   map mods with less maximum or less fire resistance (and the mapping
+   resistance penalty), Elemental Weakness / Flammability curses on you,
+   losing endurance charges or a flask. Recalculate with each and say which
+   ones turn the net regeneration negative, so the player knows which map
+   mods to skip. Also warn when fire resistance isn't at its maximum, since
+   each missing point adds to the burn. The fire mastery "1 life per second
+   per 1% uncapped fire resistance" makes resistance past the cap
+   regeneration too, so count both.
 
 Skills PoB doesn't know yet (Fireball of Radiation in PoB 2.67.2; that build
 uses plain Fireball or Fire Trap as a stand-in, labelled in the skill
@@ -727,7 +741,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first, then Fates, then mercenaries | Your body parts ranked on your build; a copied body part says whether to attach it |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
-| 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS |
+| 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS, Righteous Fire margin warning | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS; the test build's audit shows its Righteous Fire margin and which map mods would make it burn faster than it regenerates |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
