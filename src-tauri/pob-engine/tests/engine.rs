@@ -420,3 +420,13 @@ fn tries_enemy_and_player_conditions_and_leaves_the_build_unchanged() {
     assert_eq!(results[2]["unparsed"][0], "Not a modifier PoB knows");
     assert_eq!(engine.load_build(xml).expect("build loads again").stats, before.stats);
 }
+
+#[test]
+fn reads_link_skills_and_mercenary_lines() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let m = engine.mercenary(include_str!("fixtures/fireball-witch.xml")).expect("mercenary");
+    assert!(m["life"].as_f64().unwrap() > 0.0);
+    assert!(m["links"].as_array().unwrap().is_empty(), "the fixture has no Link skill");
+    assert!(m["nodes"].as_array().unwrap().is_empty());
+}

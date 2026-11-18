@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --skills | --trials trials.json | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --skills | --mercenary | --trials trials.json | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -186,6 +186,12 @@ fn main() {
         for (t, res) in spec["trials"].as_array().into_iter().flatten().zip(r["results"].as_array().into_iter().flatten()) {
             println!("{}: {} unparsed {}", t["label"], show(&res["stats"]), res["unparsed"]);
         }
+        return;
+    }
+    if args.iter().any(|a| a == "--mercenary") {
+        let m = engine.mercenary(&xml).expect("mercenary");
+        write_json(&m);
+        println!("{}", serde_json::to_string_pretty(&m).unwrap());
         return;
     }
     if args.iter().any(|a| a == "--skills") {

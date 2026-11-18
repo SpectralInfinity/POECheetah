@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
 import type { Trial } from "../core/fates";
+import type { MercenaryResult } from "../core/mercenary";
 import type { AuditResult } from "../core/audit";
 import type { Calculated, CompareResult } from "../core/compare";
 import type { Mode } from "../core/goals";
@@ -95,6 +96,12 @@ export interface SkillDps {
 export async function skills(xml: string): Promise<{ skills: SkillDps[]; fullDps: number }> {
   if (!isTauri()) return previewSkills(xml);
   return invoke("pob_skills", { xml });
+}
+
+/** Link skill buffs as PoB builds them, life, light radius and the lines about a mercenary (3.30). */
+export async function mercenary(xml: string): Promise<MercenaryResult> {
+  if (!isTauri()) return previewMercenary();
+  return invoke<MercenaryResult>("pob_mercenary", { xml });
 }
 
 /** The build in `mode` with shared config changes, then each trial on top (3.30 Fates). */
@@ -407,6 +414,26 @@ function previewAudit(xml: string): AuditResult {
       nodes: ["Poisons you inflict deal Damage 20% faster"],
       gems: ["Poisonous Concoction of Bouncing", "Flesh and Stone"],
     },
+  };
+}
+
+/** Sample data shaped like the owner's Luminary. */
+function previewMercenary(): MercenaryResult {
+  return {
+    life: 14_885,
+    lightRadiusInc: 257,
+    links: [{ name: "Flame Link", level: 25, quality: 20, inc: 15, more: 1, mods: [
+      { name: "FireMin", type: "BASE", value: 345 },
+      { name: "FireMax", type: "BASE", value: 517 },
+      { name: "FireMin", type: "BASE", value: 3, percentOf: "Life" },
+      { name: "FireMax", type: "BASE", value: 3, percentOf: "Life" },
+    ] }],
+    nodes: [
+      { line: "You can hire a Mercenary permanently", parsed: false },
+      { line: "your Link Skill Buffs on your Mercenary at 50% of their value", parsed: false },
+      { line: "If your Linked Mercenary dies, the Link owner does not also die", parsed: false },
+    ],
+    items: [{ slot: "Helmet", line: "Link Skills can target Damageable Minions", parsed: true }],
   };
 }
 

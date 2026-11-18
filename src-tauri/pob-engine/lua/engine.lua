@@ -1229,6 +1229,65 @@ function api.modSets(xmlText, mode, sets)
 	end)
 end
 
+-- Mercenary (3.30, design doc §3.13 / §3.6): PoB has no mercenary actor, but
+-- it builds each Link skill's buff (what the linked ally gets) and knows the
+-- player's light radius, which Luminary's Golden Glory turns into link buff
+-- effect on the mercenary. The app does the rest from GGG's stated rules.
+
+--- Each Link skill's buff as PoB builds it (modifier name, type, value, and
+--- the player stat a value is a percentage of), its buff effect bonuses, the
+--- player's life and light radius, and the passive and item lines that
+--- mention a mercenary or link skills.
+function api.mercenary(xmlText)
+	if xmlText ~= loadedXml then load(xmlText) end
+	local env = build.calcsTab.mainEnv
+	local out = build.calcsTab.mainOutput
+	local links = array({})
+	for _, skill in ipairs(env.player.activeSkillList or {}) do
+		for _, buff in ipairs(skill.buffList or {}) do
+			if buff.type == "Link" then
+				local mods = array({})
+				for _, mod in ipairs(buff.modList or {}) do
+					local percentOf
+					for _, tag in ipairs(mod) do
+						if tag.type == "PercentStat" then percentOf = tag.stat end
+					end
+					if type(mod.value) == "number" then
+						mods[#mods + 1] = { name = mod.name, type = mod.type, value = mod.value, percentOf = percentOf }
+					end
+				end
+				local effect = skill.activeEffect or {}
+				links[#links + 1] = {
+					name = buff.name,
+					level = effect.level,
+					quality = effect.quality,
+					inc = skill.skillModList:Sum("INC", skill.skillCfg, "LinkEffect", "BuffEffect"),
+					more = skill.skillModList:More(skill.skillCfg, "LinkEffect", "BuffEffect"),
+					mods = mods,
+				}
+			end
+		end
+	end
+	local text = buildText()
+	local function mentions(line) return line:match("[Mm]ercenar") or line:match("Link Skill") end
+	local nodes, items = array({}), array({})
+	for _, line in ipairs(text.nodes) do
+		if mentions(line) then nodes[#nodes + 1] = { line = line, parsed = parsesAsMod(line) } end
+	end
+	for _, item in ipairs(text.items) do
+		for line in item.raw:gmatch("[^\n]+") do
+			if mentions(line) then items[#items + 1] = { slot = item.slot, line = line, parsed = parsesAsMod(line) } end
+		end
+	end
+	return {
+		life = out.Life or 0,
+		lightRadiusInc = out.LightRadiusInc or 0,
+		links = links,
+		nodes = nodes,
+		items = items,
+	}
+end
+
 -- Trials (3.30 Fates, design doc §3.13): the build against a changed enemy
 -- or with conditions on the player: config options, modifier lines and an
 -- enemy resistance raised by some amount (a Fate's "+75% Fire Resistance").

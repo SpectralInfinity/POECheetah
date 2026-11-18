@@ -147,6 +147,14 @@ async fn pob_trials(app: tauri::AppHandle, xml: String, mode: Mode, shared: serd
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Link skill buffs and mercenary lines (3.30 Luminary; PoB has no mercenary actor).
+#[tauri::command]
+async fn pob_mercenary(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.mercenary(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Every skill group's DPS when it is the main skill, and PoB's Full DPS.
 #[tauri::command]
 async fn pob_skills(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
@@ -319,6 +327,7 @@ pub fn run() {
             pob_mod_sets,
             pob_skills,
             pob_trials,
+            pob_mercenary,
             market_get,
             market_get_bytes,
             build_link_get,
