@@ -187,6 +187,107 @@ export function withStage(xml: string, c: StageChoice): string {
   return setSectionAttr(out, "Skills", "activeSkillSet", String(c.skillSet));
 }
 
+// --- Build tiers and the main skill (design doc §3.14) ------------------------
+
+/** One tier of a build: a tree, item set and skill set that belong together. */
+export interface Tier {
+  title: string;
+  choice: StageChoice;
+}
+
+/**
+ * A build's tiers ("Leveling 1-28", "Red Maps"…): one per entry of whichever
+ * of trees, skill sets and item sets has the most, the others matched by
+ * title, else position, else the active one. A single tier when there's only
+ * one of each.
+ */
+export function listTiers(xml: string): Tier[] {
+  const st = readStages(xml);
+  const lists: { kind: "spec" | "skillSet" | "itemSet"; sets: Stage[]; active: number }[] = [
+    { kind: "spec", sets: st.specs, active: st.activeSpec },
+    { kind: "skillSet", sets: st.skillSets, active: st.activeSkillSet },
+    { kind: "itemSet", sets: st.itemSets, active: st.activeItemSet },
+  ];
+  const driver = lists.reduce((a, b) => (b.sets.length > a.sets.length ? b : a));
+  if (driver.sets.length <= 1) {
+    return [{ title: driver.sets[0]?.title ?? "Build", choice: { spec: st.activeSpec, itemSet: st.activeItemSet, skillSet: st.activeSkillSet } }];
+  }
+  return driver.sets.map((d, position) => {
+    const pick = (l: (typeof lists)[number]) =>
+      l === driver
+        ? d.id
+        : (l.sets.find((x) => norm(x.title) === norm(d.title) && norm(d.title) !== "")?.id ??
+          (l.sets.length === driver.sets.length ? l.sets[position]?.id : undefined) ??
+          l.active);
+    return { title: d.title, choice: { spec: pick(lists[0]), skillSet: pick(lists[1]), itemSet: pick(lists[2]) } };
+  });
+}
+
+/** The tier the code was saved on (the one whose sets are all active), else the first. */
+export function activeTier(xml: string, tiers = listTiers(xml)): Tier {
+  const st = readStages(xml);
+  return (
+    tiers.find((t) => t.choice.spec === st.activeSpec && t.choice.skillSet === st.activeSkillSet && t.choice.itemSet === st.activeItemSet) ??
+    tiers.find((t) => t.choice.spec === st.activeSpec) ??
+    tiers[0]
+  );
+}
+
+/** A skill group by what's in it: its slot and gem names (positions shift when groups are granted). */
+export interface GroupKey {
+  slot: string;
+  gems: string[];
+}
+
+const sameGems = (a: string[], b: string[]) => a.length === b.length && a.every((g, i) => g === b[i]);
+
+function activeSkillGroups(xml: string): { holder: Span; groups: Span[] } | null {
+  const skills = first(xml, "Skills");
+  if (!skills) return null;
+  const id = attr(skills.text, "activeSkillSet");
+  const sets = spans(skills.text, "SkillSet");
+  const set = sets.find((x) => attr(x.text, "id") === id) ?? sets[0];
+  const holder = set ? { start: skills.start + set.start, end: skills.start + set.end, text: set.text } : skills;
+  return { holder, groups: spans(holder.text, "Skill") };
+}
+
+/** The key of each skill group in the active skill set, in PoB's order (index + 1 = `mainSocketGroup`). */
+export function skillGroupKeys(xml: string): GroupKey[] {
+  return (activeSkillGroups(xml)?.groups ?? []).map((g) => ({
+    slot: attr(g.text, "slot") ?? "",
+    gems: spans(g.text, "Gem").map((gem) => attr(gem.text, "nameSpec") ?? ""),
+  }));
+}
+
+/** The build with this group as its main skill (`mainSocketGroup`); unchanged if no group matches. */
+export function withMainGroup(xml: string, key: GroupKey): string {
+  const keys = skillGroupKeys(xml);
+  const slot = (s: string) => (s === "None" ? "" : s);
+  const i = keys.findIndex((k) => slot(k.slot) === slot(key.slot) && sameGems(k.gems, key.gems));
+  return i < 0 ? xml : setSectionAttr(xml, "Build", "mainSocketGroup", String(i + 1));
+}
+
+/** What the player chose for a saved build: a tier (by title) and, per tier, a main skill. */
+export interface BuildChoice {
+  tier?: string;
+  main?: Record<string, GroupKey>;
+}
+
+/**
+ * The XML every calculation uses: the chosen tier active, the chosen main
+ * skill set, and granted skill groups pinned so the main skill stays the
+ * same when the passive tree or items changed (e.g. a 3.29 build on the 3.30 tree).
+ */
+export function applyChoice(xml: string, choice: BuildChoice = {}): string {
+  const tiers = listTiers(xml);
+  const tier = tiers.find((t) => t.title === choice.tier);
+  let out = tier ? withStage(xml, tier.choice) : xml;
+  const title = (tier ?? activeTier(xml, tiers)).title;
+  const key = choice.main?.[title];
+  if (key) out = withMainGroup(out, key);
+  return pinMainGroup(out);
+}
+
 function activeSpec(xml: string): Span | null {
   const tree = first(xml, "Tree");
   if (!tree) return null;

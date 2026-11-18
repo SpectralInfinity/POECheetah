@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { decodeBuildCode } from "../core/buildCode";
+import { applyChoice } from "../core/compare";
+import { savedChoice } from "./choice";
 import { goalLabel, type Goal, type Mode } from "../core/goals";
 import {
   BODY_SLOTS,
@@ -34,9 +36,10 @@ function saveWickerman(buildId: number, w: WickermanParts) {
 }
 
 /** Calculates the Wickerman's parts (and a candidate) on the build. Shared with the item check. */
-export async function judgeWickerman(code: string, mode: Mode, goal: Goal, w: WickermanParts, candidate?: BodyPart | null) {
+export async function judgeWickerman(buildId: number, code: string, mode: Mode, goal: Goal, w: WickermanParts, candidate?: BodyPart | null) {
   const sets = partSets(w, candidate);
-  const r = await modSets(await decodeBuildCode(code), mode, sets.map((s) => s.lines));
+  const xml = applyChoice(await decodeBuildCode(code), savedChoice(buildId));
+  const r = await modSets(xml, mode, sets.map((s) => s.lines));
   return judgeParts(w, sets, r.results, goal, candidate);
 }
 
@@ -71,7 +74,7 @@ export function WickermanPanel(props: { buildId: number; code: string; goal: Goa
       setBusy(true);
       setError("");
       try {
-        const j = await judgeWickerman(props.code, mode, goal, w, candidate);
+        const j = await judgeWickerman(buildId, props.code, mode, goal, w, candidate);
         setWorth(j.attached);
         setVerdict(j.candidate);
       } catch (e) {

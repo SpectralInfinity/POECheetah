@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { decodeBuildCode } from "../core/buildCode";
+import { applyChoice } from "../core/compare";
+import { savedChoice } from "./choice";
 import { modeFor, type Goal, type Mode } from "../core/goals";
 import { checkBuild, diffFindings } from "../core/health";
 import {
@@ -81,7 +83,7 @@ function useItemCheck() {
       // A 3.30 Wickerman body part: its worth over the part in its slot (design doc §3.13).
       const part = readBodyPart(text);
       if (part) {
-        const j = await judgeWickerman(ctx.code, ctx.mode, ctx.goal, savedWickerman(ctx.buildId), part);
+        const j = await judgeWickerman(ctx.buildId, ctx.code, ctx.mode, ctx.goal, savedWickerman(ctx.buildId), part);
         if (run !== latest.current) return;
         setChecked(null);
         setBodyPart(j.candidate);
@@ -89,7 +91,7 @@ function useItemCheck() {
       }
       const header = readItemHeader(text);
       const [trial, price] = await Promise.all([
-        tryItem(await decodeBuildCode(ctx.code), text, ctx.mode),
+        tryItem(applyChoice(await decodeBuildCode(ctx.code), savedChoice(ctx.buildId)), text, ctx.mode),
         uniquePrice(header, ctx.league),
       ]);
       if (run !== latest.current) return;

@@ -373,3 +373,28 @@ fn adds_modifier_lines_and_says_which_pob_doesnt_understand() {
     let again = engine.mod_sets(xml, Mode::Configured, &[vec![]]).expect("calculated");
     assert_eq!(life(&again["results"][0]["stats"]), before.stats["Life"]);
 }
+
+#[test]
+fn lists_every_skill_with_its_dps_and_leaves_the_build_unchanged() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let before = engine.load_build(xml).expect("build loads");
+    let s = engine.skills(xml).expect("skills");
+    let skills = s["skills"].as_array().expect("skills list");
+    let main: Vec<_> = skills.iter().filter(|k| k["main"] == true).collect();
+    assert_eq!(main.len(), 1);
+    assert_eq!(main[0]["name"], "Fireball");
+    assert!((main[0]["dps"].as_f64().unwrap() - before.stats["CombinedDPS"]).abs() < 1.0);
+    assert!(main[0]["gems"].as_array().unwrap().iter().any(|g| g == "Fireball"));
+    assert_eq!(engine.load_build(xml).expect("build loads again").stats, before.stats);
+}
+
+#[test]
+fn audit_reports_sustain_and_no_burn_scenarios_without_self_damage() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let a = engine.audit(include_str!("fixtures/fireball-witch.xml")).expect("audited");
+    assert!(a["sustain"]["base"]["Mana"].as_f64().unwrap() > 0.0);
+    assert!(a["sustain"]["scenarios"].as_array().unwrap().is_empty());
+}
