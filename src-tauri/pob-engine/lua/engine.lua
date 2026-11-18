@@ -119,10 +119,25 @@ end
 
 local loadedXml
 
+--- Only the current passive tree is downloaded (scripts/fetch-pob.sh). A build
+--- saved on an older tree loads on the current one, as PoB's "Convert" button
+--- does: nodes keep their ids; ones the new tree dropped are left out.
+local function onShippedTree(xmlText)
+	return (xmlText:gsub('treeVersion="([%w_]+)"', function(version)
+		local file = io.open("TreeData/" .. version .. "/tree.lua", "r")
+		if file then
+			file:close()
+			return nil
+		end
+		return 'treeVersion="' .. latestTreeVersion .. '"'
+	end))
+end
+
 local function load(xmlText)
 	messages = {}
 	loadedXml = nil
 	mainObject.promptMsg = nil
+	xmlText = onShippedTree(xmlText)
 	loadBuildFromXML(xmlText, "POE Cheetah")
 	if mainObject.promptMsg then
 		local msg = mainObject.promptMsg
@@ -147,7 +162,7 @@ end
 local inMode -- defined with the analysis below
 function api.tryItem(xmlText, itemText, mode)
 	if xmlText ~= loadedXml then load(xmlText) end
-	local item = new("Item", (itemText:gsub("\r\n", "\n"):gsub("^%s+", "")))
+	local item = new("Item"):Item((itemText:gsub("\r\n", "\n"):gsub("^%s+", "")))
 	if not item.base then
 		error("Path of Building couldn't read that item. Copy it with Ctrl+C in game or from the trade site.", 0)
 	end
@@ -616,7 +631,7 @@ local function rankFlasks(calcFunc, slots)
 				local raw = "Rarity: MAGIC\n" .. current.baseName .. "\nCrafted: true\n"
 					.. "Prefix: {range:1}" .. (prefix or "None") .. "\nSuffix: {range:1}" .. (suffix or "None") .. "\n"
 					.. "Quality: " .. tostring(current.quality or 0)
-				local item = new("Item", raw)
+				local item = new("Item"):Item(raw)
 				item:Craft()
 				return item
 			end
@@ -728,10 +743,24 @@ function api.rareSearch(xmlText, mode, slotName, weights)
 	return inMode(mode, function()
 		local slot = build.itemsTab.slots[slotName]
 		if not slot then error("No slot called " .. tostring(slotName), 0) end
-		local generator = new("TradeQueryGenerator", { itemsTab = build.itemsTab })
+		local generator = new("TradeQueryGenerator"):TradeQueryGenerator({ itemsTab = build.itemsTab })
 		generator.tradeTypeIndex = 2 -- instant buyout and in person
 		local query, failure
-		generator.requesterCallback = function(_, json, errMsg) query, failure = json, errMsg end
+		-- PoB >= 2.68 passes the bare query as a table; wrap it with the sort
+		-- order as PoB does for the trade site ({ query, sort }), weighted group
+		-- first. Older versions passed that JSON text already.
+		generator.requesterCallback = function(_, q, errMsg)
+			if type(q) == "table" and not q.query then
+				for i, group in ipairs(q.stats or {}) do
+					if group.type == "weight" then
+						q.stats[1], q.stats[i] = q.stats[i], q.stats[1]
+						break
+					end
+				end
+				q = { query = q, sort = { ["statgroup.0"] = "desc" } }
+			end
+			query, failure = type(q) == "table" and require("dkjson").encode(q) or q, errMsg
+		end
 		local current = build.itemsTab.items[slot.selItemId]
 		local statWeights = {}
 		for i, w in ipairs(weights) do statWeights[i] = { stat = w.stat, weightMult = w.weightMult } end
@@ -823,7 +852,7 @@ local function trySlots(items)
 	local out = {}
 	for slotName, held in pairs(items) do
 		if slots[slotName] then
-			local item = new("Item", held.raw)
+			local item = new("Item"):Item(held.raw)
 			if item.base and build.itemsTab:IsItemValidForSlot(item, slotName) then
 				out[slotName] = pick(calcFunc({ repSlotName = slotName, repItem = item }), SWAP_KEYS)
 			end
@@ -981,6 +1010,107 @@ end
 --- The audit of build XML: each of AUDIT_VARS that applies to the build, with
 --- the stats for every value tried; each flask's worth (the build without it)
 --- and each utility base tried in its slot; PoB's warnings; the build's text.
+-- Sustain (design doc §3.14 items 6–7): a build that burns itself (Righteous
+-- Fire and other self-damage PoB counts in TotalBuildDegen) lives on
+-- regeneration above the burn; and every build needs mana for its skills.
+
+--- Whether PoB's modifier parser understands a line (unknown lines count as nothing).
+local function parsesAsMod(line)
+	local ok, mods, extra = pcall(modLib.parseMod, line)
+	return ok and mods ~= nil and not extra
+end
+
+local SUSTAIN_KEYS = { "Life", "LifeRegenRecovery", "TotalBuildDegen", "NetLifeRegen", "FireResist",
+	"FireResistOverCap", "Mana", "ManaUnreserved", "ManaRegenRecovery", "ManaCost", "ManaPerSecondCost",
+	"LifeCost", "LifePerSecondCost" }
+
+--- The build with modifier lines added as a custom block (removed again), and `fn` on its output.
+local function withLines(lines, fn)
+	local configSet = build.configTab.configSets[build.configTab.activeConfigSetId]
+	configSet.customModsList = configSet.customModsList or {}
+	local list = configSet.customModsList
+	local block = { title = "POE Cheetah trial", enabled = true, text = table.concat(lines, "\n") }
+	table.insert(list, block)
+	local ok, result = pcall(function()
+		recalc()
+		return fn(build.calcsTab.mainOutput)
+	end)
+	for i = #list, 1, -1 do
+		if list[i] == block then table.remove(list, i) end
+	end
+	recalc()
+	if not ok then error(result, 0) end
+	return result
+end
+
+--- Self-damage and mana numbers, and, for a build that burns itself, the same
+--- under what makes the burn bigger or the regeneration smaller: high-tier map
+--- mods and curses (PoB's own config options or its parser's modifier lines).
+local function sustain(original)
+	local base = pick(build.calcsTab.mainOutput, SUSTAIN_KEYS)
+	local scenarios = array({})
+	if (base.TotalBuildDegen or 0) > 0 then
+		local function config(label, changes)
+			scenarios[#scenarios + 1] = { label = label,
+				stats = withConfig(original, changes, function(out) return pick(out, SUSTAIN_KEYS) end) }
+		end
+		local function lines(label, mods)
+			for _, line in ipairs(mods) do
+				if not parsesAsMod(line) then return end
+			end
+			scenarios[#scenarios + 1] = { label = label, stats = withLines(mods, function(out) return pick(out, SUSTAIN_KEYS) end) }
+		end
+		lines("Map mod \"of Exposure\" (red maps: −12% to all maximum resistances)", { "-12% to all maximum Resistances" })
+		lines("Map mod \"of Smothering\" (red maps: 60% less life recovery rate)", { "60% less Life Recovery Rate" })
+		config("Cursed with Elemental Weakness (red map mod, level 15)", { playerCursedWithElementalWeakness = 15 })
+		config("Cursed with Flammability (level 15)", { playerCursedWithFlammability = 15 })
+		if original.useEnduranceCharges then
+			config("No endurance charges", { useEnduranceCharges = false })
+		end
+		withConfig(original, {}, function() end)
+	end
+	return { base = base, scenarios = scenarios }
+end
+
+-- Skills (design doc §3.14 items 4–5): every skill group's own DPS, so the
+-- player can choose the main skill (e.g. an auto-cast Fireball on
+-- Spellslinger while Righteous Fire was saved as main).
+
+--- Each enabled skill group with an active skill: its main skill and DPS when
+--- it is the main group, and whether it counts toward PoB's Full DPS. Groups
+--- are identified by slot and gem names (PoB's own list can differ from the
+--- XML's order once item- or tree-granted groups are added).
+function api.skills(xmlText)
+	if xmlText ~= loadedXml then load(xmlText) end
+	local saved = build.mainSocketGroup
+	local list = array({})
+	local ok, err = pcall(function()
+		for i, group in ipairs(build.skillsTab.socketGroupList) do
+			if group.enabled ~= false and group.displaySkillList and #group.displaySkillList > 0 then
+				build.mainSocketGroup = i
+				recalc()
+				local gems = array({})
+				for _, gem in ipairs(group.gemList or {}) do gems[#gems + 1] = gem.nameSpec or "" end
+				local info = skillInfo()
+				list[#list + 1] = {
+					slot = group.slot or "",
+					label = group.label or "",
+					gems = gems,
+					source = group.source,
+					name = info and info.name or (gems[1] or ""),
+					dps = dpsOf(build.calcsTab.mainOutput),
+					fullDps = group.includeInFullDPS == true,
+					main = i == saved,
+				}
+			end
+		end
+	end)
+	build.mainSocketGroup = saved
+	recalc()
+	if not ok then error(err, 0) end
+	return { skills = list, fullDps = build.calcsTab.mainOutput.FullDPS or 0 }
+end
+
 function api.audit(xmlText)
 	if xmlText ~= loadedXml then load(xmlText) end
 	return inMode("configured", function(original)
@@ -1026,7 +1156,7 @@ function api.audit(xmlText)
 				local alternatives = array({})
 				if slot.active then
 					for _, baseName in ipairs(AUDIT_FLASKS) do
-						local alt = new("Item", "Rarity: NORMAL\n" .. baseName .. "\nQuality: 20")
+						local alt = new("Item"):Item("Rarity: NORMAL\n" .. baseName .. "\nQuality: 20")
 						if alt.base then
 							alternatives[#alternatives + 1] = { base = baseName,
 								stats = pick(calcFunc({ repSlotName = slotName, repItem = alt }), AUDIT_KEYS) }
@@ -1055,6 +1185,7 @@ function api.audit(xmlText)
 			warnings = warnings,
 			dotCap = data.misc.DotDpsCap,
 			text = buildText(),
+			sustain = sustain(original),
 		}
 	end)
 end
@@ -1063,11 +1194,6 @@ end
 -- parts are items whose lines apply to the character. PoB's config takes
 -- custom modifier lines, so they can be calculated before PoB knows them.
 
---- Whether PoB's modifier parser understands a line (unknown lines count as nothing).
-local function parsesAsMod(line)
-	local ok, mods, extra = pcall(modLib.parseMod, line)
-	return ok and mods ~= nil and not extra
-end
 
 --- The build in `mode` with each set of modifier lines added (as a custom
 --- modifier block, removed again afterwards), and the lines PoB's parser

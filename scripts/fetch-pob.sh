@@ -38,5 +38,15 @@ git -C "$repo" -c gc.auto=0 -c maintenance.auto=false checkout --quiet HEAD --pa
 rm -rf "$dest"
 mkdir -p "$dest"
 cp -R "$repo/src" "$repo/runtime" "$repo/LICENSE.md" "$dest/"
+
+# PoB's own runtime accepts compound assignments (`x += 1`, `s ..= t`; since
+# v2.68), the stock LuaJIT the engine embeds doesn't: rewrite each statement
+# to plain Lua (`x = x + (1)`), then make sure none is left.
+find "$dest/src" -name '*.lua' -print0 | xargs -0 perl -i -pe \
+  's/^(\s*)([A-Za-z_][\w.]*(?:\[[^\]]*\])*)\s*(\+|-|\*|\/|\.\.)=\s+(.+?)(\s*--[^"\x27]*)?$/$1$2 = $2 $3 ($4)$5/'
+if grep -rnP '^\s*[A-Za-z_][\w.\[\]"\x27]*\s*(\+|-|\*|/|\.\.)=\s' --include=*.lua "$dest/src"; then
+  echo "Compound assignments left that the rewrite can't handle (above)" >&2
+  exit 1
+fi
 echo "$version" > "$dest/VERSION"
 echo "Path of Building $version (tree $latest) → src-tauri/pob ($(du -sh "$dest" | cut -f1))"

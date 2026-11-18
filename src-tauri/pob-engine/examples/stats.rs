@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --skills | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -165,7 +165,22 @@ fn main() {
             println!("{} {} ({}): without {:+.1}%", f["slot"], f["name"], f["kind"], (dps(&f["without"]) / base - 1.0) * 100.0);
         }
         println!("warnings: {}", a["warnings"]);
+        let net = |s: &serde_json::Value| s["LifeRegenRecovery"].as_f64().unwrap_or(0.0) - s["TotalBuildDegen"].as_f64().unwrap_or(0.0);
+        println!("sustain: {}", a["sustain"]["base"]);
+        for sc in a["sustain"]["scenarios"].as_array().into_iter().flatten() {
+            println!("  {}: net {:+.0} life/s", sc["label"], net(&sc["stats"]));
+        }
         println!("audit {:.1}s", t.elapsed().as_secs_f32());
+        return;
+    }
+    if args.iter().any(|a| a == "--skills") {
+        let s = engine.skills(&xml).expect("skills");
+        write_json(&s);
+        for k in s["skills"].as_array().into_iter().flatten() {
+            println!("{}{} [{}] {}: DPS {:.0}{}", if k["main"] == true { "* " } else { "  " }, k["slot"], k["gems"], k["name"],
+                k["dps"].as_f64().unwrap_or(0.0), if k["fullDps"] == true { " (Full DPS)" } else { "" });
+        }
+        println!("Full DPS {}", s["fullDps"]);
         return;
     }
     if args.iter().any(|a| a == "--calc") {

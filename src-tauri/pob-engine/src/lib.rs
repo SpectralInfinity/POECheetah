@@ -249,6 +249,13 @@ impl Engine {
         self.json("audit", vec![xml.into()])
     }
 
+    /// Every enabled skill group's main skill and DPS when it is the main
+    /// group, whether it counts toward PoB's Full DPS, and the Full DPS. Groups
+    /// are identified by slot and gem names. Recalculates once per group.
+    pub fn skills(&self, xml: &str) -> Result<Compared, String> {
+        self.json("skills", vec![xml.into()])
+    }
+
     /// The build with each set of modifier lines added (as PoB custom
     /// modifiers, removed afterwards), with the config in `mode`, and which
     /// lines PoB's parser doesn't understand. For league effects PoB doesn't
@@ -296,6 +303,7 @@ impl Api {
             "compare" => "compare the builds",
             "audit" => "audit the build",
             "modSets" => "add the modifiers",
+            "skills" => "list the skills",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));
