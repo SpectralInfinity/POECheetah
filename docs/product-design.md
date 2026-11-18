@@ -318,8 +318,21 @@ type's max hit, flagged when it's the build's lowest. Verdicts: avoid,
 careful, fine, immune, can't calculate. Checked on the owner's builds:
 overcapped resistances make Conductivity and Flammability harmless;
 Gravewalker halves effective HP and makes Righteous Fire burn faster than it
-regenerates; Doomsayer costs a fire build about 30% DPS. Next: mercenaries
-(part 3).
+regenerates; Doomsayer costs a fire build about 30% DPS.
+
+Session 10 part 3 (built 2026-11-18 as v0.17.0): **mercenaries**. PoB 2.68.1
+still has no mercenary actor (mercenary lines are text only), so the
+Mercenary panel works from what PoB does build: each Link skill's buff (its
+modifiers, the life-based part, its buff effect bonuses), the player's life
+and light radius, and GGG's stated 3.30 rules: Golden Glory adds light
+radius to link buff effect on the mercenary at 50% (was 100%), Flame Link 3%
+of life (was 5%). On the owner's Luminary: Flame Link (level 25) gives the
+mercenary 1,927–2,346 added fire damage per hit at 244% buff effect; with
+3.29's rules about 4,052–4,692 (Flame Link's flat part left at 3.30's).
+Also listed: the mercenary lines PoB doesn't count, and a 3.30 checklist
+(−30% / −60% resistances, 20% less attack damage at 83, more life, the 25%
+Greater supports). Not done: mercenary gear and resistances themselves (PoB
+can't hold a mercenary's gear), the ladder's mercenaries (§3.12 item 7).
 
 4. **Session 10 is retargeted to 3.30:** the Wickerman (rank body parts on
    the build: PoB's config takes custom modifier lines, so a part's lines
@@ -779,7 +792,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 7b | Meta comparison with poe.ninja (§3.11, §3.12 items 1–4, 17, 19) | For your build: popular items/passives you lack, ranked by real gain |
 | 8 | Run tracker (§3.4) | Maps per hour and deaths from a real play session |
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
-| 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first (v0.14.0), then Fates (v0.16.0), then mercenaries | Your body parts ranked on your build; a copied body part says whether to attach it; every Fate judged on your build |
+| 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first (v0.14.0), then Fates (v0.16.0), then mercenaries (v0.17.0) | Your body parts ranked on your build; a copied body part says whether to attach it; every Fate judged on your build; what your Link skills give your mercenary |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
 | 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS, Righteous Fire margin warning, mana check (built 2026-11-18 as v0.15.0) | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS; the test build's audit shows its Righteous Fire margin and which map mods would make it burn faster than it regenerates |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |

@@ -256,6 +256,13 @@ impl Engine {
         self.json("skills", vec![xml.into()])
     }
 
+    /// Each Link skill's buff as PoB builds it, its buff effect bonuses, the
+    /// player's life and light radius, and the lines that mention a mercenary
+    /// (PoB has no mercenary actor; 3.30 Luminary).
+    pub fn mercenary(&self, xml: &str) -> Result<Compared, String> {
+        self.json("mercenary", vec![xml.into()])
+    }
+
     /// The build in `mode` with `shared` config changes (a map boss), then each
     /// trial on top of them: `{ config: {var: value}, lines: [...], enemyResist:
     /// {"Fire": 75} }` (3.30 Fates). Returns the baseline and each trial's stats.
@@ -312,6 +319,7 @@ impl Api {
             "modSets" => "add the modifiers",
             "skills" => "list the skills",
             "trials" => "try the changes",
+            "mercenary" => "read the link skills",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));

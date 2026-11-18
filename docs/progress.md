@@ -49,7 +49,8 @@
       Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
       copy a real body part and see the app read it), then Fates (built
       2026-11-18 as v0.16.0: tick once the verdicts match what bosses do to
-      you in game), then mercenaries.
+      you in game), then mercenaries (built 2026-11-18 as v0.17.0: tick once
+      the mercenary panel's Flame Link numbers look right on your Luminary).
 - [x] 11. Path of Building 3.30 (v2.68.1), build tiers and the main skill
       (design doc §3.14): tier picker, progression table, compare by tier,
       main skill picker, Full DPS, Righteous Fire margin and mana check.
@@ -364,6 +365,15 @@
   with overcapped resistances; Gravewalker halves effective HP (Goratha's
   Righteous Fire then burns faster than it regenerates); Doomsayer −30% DPS on
   Fire Trap.
+- **10 part 3 (mercenaries):** PoB 2.68.1 still has no mercenary actor. New
+  engine call `mercenary` reads each Link skill's buff from PoB's own buff
+  list (`activeSkill.buffList`, type "Link": modifier values, PercentStat
+  Life parts, LinkEffect/BuffEffect sums), life, light radius and the lines
+  about a mercenary. Golden Glory's tree text spans two lines in
+  `node.sd`; the share is read from "at 50% of their value". On the owner's
+  Luminary: Flame Link level 25 (21 + 4 from gear), 345–517 base plus 3% of
+  14,885 life, +15% buff effect, +257% light radius: 1,927–2,346 fire damage
+  to the mercenary's hits (about 4,052–4,692 with 3.29's rules).
 
 ## Usage log (claude.ai → Settings → Usage)
 
