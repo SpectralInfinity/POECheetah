@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Analysis } from "../core/analysis";
+import type { Trial } from "../core/fates";
 import type { AuditResult } from "../core/audit";
 import type { Calculated, CompareResult } from "../core/compare";
 import type { Mode } from "../core/goals";
@@ -94,6 +95,17 @@ export interface SkillDps {
 export async function skills(xml: string): Promise<{ skills: SkillDps[]; fullDps: number }> {
   if (!isTauri()) return previewSkills(xml);
   return invoke("pob_skills", { xml });
+}
+
+/** The build in `mode` with shared config changes, then each trial on top (3.30 Fates). */
+export async function trials(
+  xml: string,
+  mode: Mode,
+  shared: Record<string, string | number | boolean>,
+  list: Trial[],
+): Promise<{ before: Stats; results: { stats: Stats; unparsed: string[] }[] }> {
+  if (!isTauri()) return previewTrials(xml, list);
+  return invoke("pob_trials", { xml, mode, shared, trials: list });
 }
 
 /** The build in `mode` with each set of modifier lines added (3.30 Wickerman parts), and lines PoB doesn't understand. */
@@ -395,6 +407,20 @@ function previewAudit(xml: string): AuditResult {
       nodes: ["Poisons you inflict deal Damage 20% faster"],
       gems: ["Poisonous Concoction of Bouncing", "Flesh and Stone"],
     },
+  };
+}
+
+/** Sample numbers: an enemy resistance costs DPS, less life costs effective HP, the rest changes nothing. */
+function previewTrials(xml: string, list: Trial[]) {
+  const before: Stats = { ...previewResult(xml).stats, PhysicalMaximumHitTaken: 18_000, FireMaximumHitTaken: 100_000, ColdMaximumHitTaken: 100_000, LightningMaximumHitTaken: 100_000, ChaosMaximumHitTaken: 39_000, LifeRegenRecovery: 1700, TotalBuildDegen: 460, ShockAvoidChance: 100 };
+  return {
+    before,
+    results: list.map((t) => {
+      const stats = { ...before };
+      if (t.enemyResist) stats.CombinedDPS = (before.CombinedDPS ?? 0) * 0.7;
+      if (t.lines?.some((l) => /less maximum Life/.test(l))) Object.assign(stats, { TotalEHP: (before.TotalEHP ?? 0) * 0.25, FireMaximumHitTaken: 50_000, LifeRegenRecovery: 300 });
+      return { stats, unparsed: [] as string[] };
+    }),
   };
 }
 

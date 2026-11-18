@@ -47,8 +47,9 @@
       advice part of §3.5 is still to do.)
 - [ ] 10. League mechanics, retargeted to 3.30 (design doc §3.13): the
       Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
-      copy a real body part and see the app read it), then Fates, then
-      mercenaries.
+      copy a real body part and see the app read it), then Fates (built
+      2026-11-18 as v0.16.0: tick once the verdicts match what bosses do to
+      you in game), then mercenaries.
 - [x] 11. Path of Building 3.30 (v2.68.1), build tiers and the main skill
       (design doc §3.14): tier picker, progression table, compare by tier,
       main skill picker, Full DPS, Righteous Fire margin and mana check.
@@ -352,6 +353,17 @@
   net, "of Smothering" leaves +227, "of Exposure" +707. CI now tests pull
   requests only and builds the installer only for releases (manual run on
   main) and tags, to save Actions minutes and storage.
+- **10 part 2 (Fates):** the Fate list comes from Maxroll's Covens of Umbra
+  farming guide (the other guide sites are outside this environment's network
+  allowlist; PoB 2.68.1 has no Fate data). New engine call `trials`: shared
+  config (a map or pinnacle boss) plus per-trial config, modifier lines and a
+  raised enemy resistance (read from PoB's enemy modifiers). PoB applies
+  Withered on the player only with "CanBeWithered", so Conjurer is
+  calculated as 90% increased chaos damage taken (15 stacks). On the owner's
+  builds and Goratha's: Conductivity, Flammability and Scorch change nothing
+  with overcapped resistances; Gravewalker halves effective HP (Goratha's
+  Righteous Fire then burns faster than it regenerates); Doomsayer −30% DPS on
+  Fire Trap.
 
 ## Usage log (claude.ai → Settings → Usage)
 

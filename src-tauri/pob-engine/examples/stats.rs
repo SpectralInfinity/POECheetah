@@ -1,6 +1,6 @@
 //! Prints PoB's headline stats for a build XML file (a decoded PoB code):
 //! `cargo run --release --example stats -- build.xml [--all | --item item.txt | --analyse | --passives
-//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --skills | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
+//!   | --upgrades [names.txt] | --rare SLOT | --compare target.xml | --calc | --audit | --skills | --trials trials.json | --mods lines.txt] [--mode configured|conservative|boss] [--json out.json]`
 //! `--upgrades` without a file tries every unique PoB knows.
 
 use std::path::PathBuf;
@@ -171,6 +171,21 @@ fn main() {
             println!("  {}: net {:+.0} life/s", sc["label"], net(&sc["stats"]));
         }
         println!("audit {:.1}s", t.elapsed().as_secs_f32());
+        return;
+    }
+    if let Some(i) = args.iter().position(|a| a == "--trials") {
+        // trials.json: { "shared": {config}, "trials": [ {config, lines, enemyResist, label} ] }
+        let spec: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&args[i + 1]).expect("read trials")).expect("trials JSON");
+        let r = engine.trials(&xml, mode, &spec["shared"], &spec["trials"]).expect("trials");
+        write_json(&r);
+        let show = |s: &serde_json::Value| format!("DPS {:.0} EHP {:.0} phys {:.0} fire {:.0} cold {:.0} light {:.0} chaos {:.0}",
+            s["CombinedDPS"].as_f64().unwrap_or(0.0), s["TotalEHP"].as_f64().unwrap_or(0.0), s["PhysicalMaximumHitTaken"].as_f64().unwrap_or(0.0),
+            s["FireMaximumHitTaken"].as_f64().unwrap_or(0.0), s["ColdMaximumHitTaken"].as_f64().unwrap_or(0.0),
+            s["LightningMaximumHitTaken"].as_f64().unwrap_or(0.0), s["ChaosMaximumHitTaken"].as_f64().unwrap_or(0.0));
+        println!("before: {}", show(&r["before"]));
+        for (t, res) in spec["trials"].as_array().into_iter().flatten().zip(r["results"].as_array().into_iter().flatten()) {
+            println!("{}: {} unparsed {}", t["label"], show(&res["stats"]), res["unparsed"]);
+        }
         return;
     }
     if args.iter().any(|a| a == "--skills") {

@@ -398,3 +398,25 @@ fn audit_reports_sustain_and_no_burn_scenarios_without_self_damage() {
     assert!(a["sustain"]["base"]["Mana"].as_f64().unwrap() > 0.0);
     assert!(a["sustain"]["scenarios"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn tries_enemy_and_player_conditions_and_leaves_the_build_unchanged() {
+    let Some(dir) = pob_dir() else { return };
+    let engine = Engine::start(&dir).expect("engine starts");
+    let xml = include_str!("fixtures/fireball-witch.xml");
+    let before = engine.load_build(xml).expect("build loads");
+    let shared = serde_json::json!({ "enemyIsBoss": "Boss" });
+    let trials = serde_json::json!([
+        { "enemyResist": { "Fire": 75 } },
+        { "config": { "playerCursedWithConductivity": 15 } },
+        { "lines": ["Not a modifier PoB knows"] },
+    ]);
+    let r = engine.trials(xml, Mode::Configured, &shared, &trials).expect("trials");
+    let dps = |s: &serde_json::Value| s["CombinedDPS"].as_f64().unwrap();
+    let base = &r["before"];
+    let results = r["results"].as_array().unwrap();
+    assert!(dps(&results[0]["stats"]) < dps(base) * 0.8, "fire resistance cuts a Fireball's DPS");
+    assert!(results[1]["stats"]["LightningResist"].as_f64().unwrap() < base["LightningResist"].as_f64().unwrap());
+    assert_eq!(results[2]["unparsed"][0], "Not a modifier PoB knows");
+    assert_eq!(engine.load_build(xml).expect("build loads again").stats, before.stats);
+}

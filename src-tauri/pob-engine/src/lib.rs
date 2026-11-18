@@ -256,6 +256,13 @@ impl Engine {
         self.json("skills", vec![xml.into()])
     }
 
+    /// The build in `mode` with `shared` config changes (a map boss), then each
+    /// trial on top of them: `{ config: {var: value}, lines: [...], enemyResist:
+    /// {"Fire": 75} }` (3.30 Fates). Returns the baseline and each trial's stats.
+    pub fn trials(&self, xml: &str, mode: Mode, shared: &serde_json::Value, trials: &serde_json::Value) -> Result<Compared, String> {
+        self.json("trials", vec![xml.into(), mode.as_str().into(), shared.clone(), trials.clone()])
+    }
+
     /// The build with each set of modifier lines added (as PoB custom
     /// modifiers, removed afterwards), with the config in `mode`, and which
     /// lines PoB's parser doesn't understand. For league effects PoB doesn't
@@ -304,6 +311,7 @@ impl Api {
             "audit" => "audit the build",
             "modSets" => "add the modifiers",
             "skills" => "list the skills",
+            "trials" => "try the changes",
             _ => "make a trade search",
         };
         let fail = |e: mlua::Error| format!("Path of Building could not {what}: {}", lua_message(&e));

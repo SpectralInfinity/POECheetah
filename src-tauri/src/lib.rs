@@ -139,6 +139,14 @@ async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, Strin
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// The build against changed enemies or conditions on the player (3.30 Fates).
+#[tauri::command]
+async fn pob_trials(app: tauri::AppHandle, xml: String, mode: Mode, shared: serde_json::Value, trials: serde_json::Value) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.trials(&xml, mode, &shared, &trials))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Every skill group's DPS when it is the main skill, and PoB's Full DPS.
 #[tauri::command]
 async fn pob_skills(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
@@ -310,6 +318,7 @@ pub fn run() {
             pob_audit,
             pob_mod_sets,
             pob_skills,
+            pob_trials,
             market_get,
             market_get_bytes,
             build_link_get,
