@@ -28,6 +28,7 @@ import { ItemCheckPanel } from "./ItemCheck";
 import { MetaComparison } from "./Meta";
 import { RunTracker } from "./Runs";
 import { WickermanPanel } from "./Wickerman";
+import { FatesPanel } from "./Fates";
 import { Earnings } from "./Earnings";
 import { FindingItem, StatChangeList } from "./parts";
 import { saveCountAssumptions, saveGoal, savedCountAssumptions, savedGoal } from "./settings";
@@ -463,6 +464,8 @@ function BuildView(props: {
       {stats && (
         <WickermanPanel key={`w${variant}`} buildId={build.id} code={buildCode} goal={goal} mode={mode} disabled={props.disabled} />
       )}
+
+      {stats && <FatesPanel key={`f${variant}`} mode={mode} disabled={props.disabled} xml={run((x) => Promise.resolve(x))} />}
 
       {stats && (
         <BuildAudit

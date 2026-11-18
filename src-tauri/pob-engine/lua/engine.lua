@@ -1229,4 +1229,55 @@ function api.modSets(xmlText, mode, sets)
 	end)
 end
 
+-- Trials (3.30 Fates, design doc §3.13): the build against a changed enemy
+-- or with conditions on the player: config options, modifier lines and an
+-- enemy resistance raised by some amount (a Fate's "+75% Fire Resistance").
+
+local TRIAL_KEYS = { "CombinedDPS", "TotalEHP", "Life", "EnergyShield", "PhysicalMaximumHitTaken",
+	"FireMaximumHitTaken", "ColdMaximumHitTaken", "LightningMaximumHitTaken", "ChaosMaximumHitTaken",
+	"FireResist", "ColdResist", "LightningResist", "ChaosResist", "LifeRegenRecovery", "TotalBuildDegen",
+	"BleedAvoidChance", "PoisonAvoidChance", "ImpaleAvoidChance", "BlindAvoidChance", "BrittleAvoidChance",
+	"ShockAvoidChance", "CurseAvoidChance", "CurseEffectOnSelf" }
+
+local function merged(...)
+	local out = {}
+	for _, t in ipairs({ ... }) do
+		for k, v in pairs(t or {}) do out[k] = v end
+	end
+	return out
+end
+
+--- The build in `mode` with `shared` config changes (e.g. the enemy is a map
+--- boss), then each trial on top: { config = {var = value}, lines = {...},
+--- enemyResist = { Fire = 75 } }. Returns the shared baseline and each trial's
+--- stats, with the lines PoB's parser doesn't understand.
+function api.trials(xmlText, mode, shared, trials)
+	if xmlText ~= loadedXml then load(xmlText) end
+	return inMode("configured", function(original)
+		local base = merged(modeChanges(original, mode), shared)
+		local before = withConfig(original, base, function(out) return pick(out, TRIAL_KEYS) end)
+		local enemy = build.calcsTab.mainEnv.enemyDB
+		local results = array({})
+		for _, trial in ipairs(trials) do
+			local changes = merged(base, trial.config)
+			for element, add in pairs(trial.enemyResist or {}) do
+				local now = enemy:Sum("BASE", nil, element .. "Resist")
+				changes["enemy" .. element .. "Resist"] = now + add
+			end
+			local lines = trial.lines or {}
+			local unparsed = array({})
+			for _, line in ipairs(lines) do
+				if not parsesAsMod(line) then unparsed[#unparsed + 1] = line end
+			end
+			local stats = withConfig(original, changes, function(out)
+				if #lines == 0 then return pick(out, TRIAL_KEYS) end
+				return withLines(lines, function(o) return pick(o, TRIAL_KEYS) end)
+			end)
+			results[#results + 1] = { stats = stats, unparsed = unparsed }
+		end
+		withConfig(original, {}, function() end)
+		return { before = before, results = results }
+	end)
+end
+
 return api

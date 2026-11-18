@@ -47,8 +47,9 @@
       advice part of §3.5 is still to do.)
 - [ ] 10. League mechanics, retargeted to 3.30 (design doc §3.13): the
       Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
-      copy a real body part and see the app read it), then Fates, then
-      mercenaries.
+      copy a real body part and see the app read it), then Fates (built
+      2026-11-18 as v0.16.0: tick once the verdicts match what bosses do to
+      you in game), then mercenaries.
 - [x] 11. Path of Building 3.30 (v2.68.1), build tiers and the main skill
       (design doc §3.14): tier picker, progression table, compare by tier,
       main skill picker, Full DPS, Righteous Fire margin and mana check.
@@ -352,6 +353,17 @@
   net, "of Smothering" leaves +227, "of Exposure" +707. CI now tests pull
   requests only and builds the installer only for releases (manual run on
   main) and tags, to save Actions minutes and storage.
+- **10 part 2 (Fates):** the Fate list comes from Maxroll's Covens of Umbra
+  farming guide (the other guide sites are outside this environment's network
+  allowlist; PoB 2.68.1 has no Fate data). New engine call `trials`: shared
+  config (a map or pinnacle boss) plus per-trial config, modifier lines and a
+  raised enemy resistance (read from PoB's enemy modifiers). PoB applies
+  Withered on the player only with "CanBeWithered", so Conjurer is
+  calculated as 90% increased chaos damage taken (15 stacks). On the owner's
+  builds and Goratha's: Conductivity, Flammability and Scorch change nothing
+  with overcapped resistances; Gravewalker halves effective HP (Goratha's
+  Righteous Fire then burns faster than it regenerates); Doomsayer −30% DPS on
+  Fire Trap.
 
 ## Usage log (claude.ai → Settings → Usage)
 
@@ -365,3 +377,5 @@
 | 2026-10-12 | 6. Item check from the clipboard, max-hit drawback | ? → 40% | ? → 21% | Read 2026-11-02 after the follow-ups (CI artifact cleanup and re-run, roadmap question), weeks later, so it doesn't isolate session 6; also the "before" of session 7a |
 | 2026-11-02 | 7a. Compare to a build or guide, build links | 40% → 84% | 21% → 27% | Same conversation as session 6's follow-ups; includes the roadmap split and checking against live poe.ninja ladder characters |
 | 2026-11-02 | 7c, 7b, 7d. Build audit; meta comparison; minion builds | 84% → (reset) → 66% | 27% → 39% | Same conversation, three sessions back to back; the 5-hour window reset in between, so only the weekly figure covers all three; includes the owner's feedback round on 7c and live poe.ninja checks |
+| 2026-11-03 – 11-07 | 8, 9, 10 (part 1). Run tracker and overlay; earnings; 3.30 prep and the Wickerman | not recorded | not recorded | Same long conversation; the owner didn't log these |
+| 2026-11-18 | 11. PoB 3.30 (v2.68.1), build tiers, main skill, Righteous Fire and mana checks | ? → 69% | ? → 29% | Same conversation, after a weekly reset; includes the 3.30 patch-note and build research, the GitHub storage investigation, and the release |
