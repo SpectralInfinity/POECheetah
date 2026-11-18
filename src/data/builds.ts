@@ -12,6 +12,16 @@ export interface BuildVersion {
   /** Headline stats from Path of Building; null if it couldn't calculate. */
   stats: Stats | null;
   addedAt: string;
+  /** The Path of Building release that calculated `stats` (null: before v0.18.0 recorded it). */
+  pobVersion: string | null;
+  /** The stats before the last recalculation with a different Path of Building (patch impact, §3.10). */
+  previous: PreviousStats | null;
+}
+
+export interface PreviousStats {
+  stats: Stats;
+  mainSkill: string | null;
+  pobVersion: string | null;
 }
 
 export interface SavedBuild {
@@ -21,7 +31,7 @@ export interface SavedBuild {
   latest: BuildVersion;
 }
 
-export type NewVersion = Pick<BuildVersion, "code" | "summary" | "mainSkill" | "stats">;
+export type NewVersion = Pick<BuildVersion, "code" | "summary" | "mainSkill" | "stats"> & { pobVersion?: string | null };
 
 /** Saved builds (design doc §3.0): SQLite in the app, in memory for the browser preview. */
 export interface BuildStore {
@@ -32,8 +42,12 @@ export interface BuildStore {
   add(name: string, version: NewVersion, now?: Date): Promise<number>;
   /** Adds a version unless the code is the same as the latest one. Returns whether it was added. */
   addVersion(buildId: number, version: NewVersion, now?: Date): Promise<boolean>;
-  /** Stores stats calculated later for an existing version. */
-  setStats(versionId: number, mainSkill: string | null, stats: Stats): Promise<void>;
+  /**
+   * Stores stats calculated later for an existing version. When a different
+   * Path of Building calculated them than the stored ones, the stored ones are
+   * kept as `previous` (what a PoB update changed).
+   */
+  setStats(versionId: number, mainSkill: string | null, stats: Stats, pobVersion?: string | null): Promise<void>;
   rename(buildId: number, name: string): Promise<void>;
   remove(buildId: number): Promise<void>;
   activeId(): Promise<number | null>;
@@ -48,6 +62,8 @@ interface VersionRow {
   main_skill: string | null;
   stats: string | null;
   added_at: string;
+  pob_version: string | null;
+  previous: string | null;
 }
 
 const toVersion = (r: VersionRow): BuildVersion => ({
@@ -58,7 +74,15 @@ const toVersion = (r: VersionRow): BuildVersion => ({
   mainSkill: r.main_skill,
   stats: r.stats === null ? null : (JSON.parse(r.stats) as Stats),
   addedAt: r.added_at,
+  pobVersion: r.pob_version ?? null,
+  previous: r.previous ? (JSON.parse(r.previous) as PreviousStats) : null,
 });
+
+/** The `previous` to keep when `next` (a PoB release) recalculates a version that `v` holds. */
+export function previousFor(v: Pick<BuildVersion, "stats" | "mainSkill" | "pobVersion" | "previous">, next: string | null | undefined): PreviousStats | null {
+  if (!next || !v.stats || v.pobVersion === next) return v.previous;
+  return { stats: v.stats, mainSkill: v.mainSkill, pobVersion: v.pobVersion };
+}
 
 const ACTIVE_KEY = "active_build_id";
 
@@ -73,9 +97,9 @@ export function sqlBuildStore(db: SqlClient): BuildStore {
 
   async function insertVersion(buildId: number, v: NewVersion, now: Date) {
     await db.execute(
-      `INSERT INTO build_versions (build_id, code, summary, main_skill, stats, added_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [buildId, v.code, JSON.stringify(v.summary), v.mainSkill, v.stats && JSON.stringify(v.stats), now.toISOString()],
+      `INSERT INTO build_versions (build_id, code, summary, main_skill, stats, added_at, pob_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [buildId, v.code, JSON.stringify(v.summary), v.mainSkill, v.stats && JSON.stringify(v.stats), now.toISOString(), v.pobVersion ?? null],
     );
     await db.execute("UPDATE builds SET updated_at = $1 WHERE id = $2", [now.toISOString(), buildId]);
   }
@@ -113,12 +137,15 @@ export function sqlBuildStore(db: SqlClient): BuildStore {
       await insertVersion(buildId, version, now);
       return true;
     },
-    async setStats(versionId, mainSkill, stats) {
-      await db.execute("UPDATE build_versions SET main_skill = $1, stats = $2 WHERE id = $3", [
-        mainSkill,
-        JSON.stringify(stats),
-        versionId,
-      ]);
+    async setStats(versionId, mainSkill, stats, pobVersion) {
+      const rows = await db.select<VersionRow[]>("SELECT * FROM build_versions WHERE id = $1", [versionId]);
+      if (!rows[0]) return;
+      const v = toVersion(rows[0]);
+      const previous = previousFor(v, pobVersion);
+      await db.execute(
+        "UPDATE build_versions SET main_skill = $1, stats = $2, pob_version = $3, previous = $4 WHERE id = $5",
+        [mainSkill, JSON.stringify(stats), pobVersion ?? v.pobVersion, previous && JSON.stringify(previous), versionId],
+      );
     },
     async rename(buildId, name) {
       await db.execute("UPDATE builds SET name = $1 WHERE id = $2", [name, buildId]);
@@ -154,7 +181,7 @@ export function memoryBuildStore(): BuildStore {
   const versions: BuildVersion[] = [];
   const latest = (buildId: number) => versions.filter((v) => v.buildId === buildId).at(-1) ?? null;
   const push = (buildId: number, v: NewVersion, now: Date) => {
-    versions.push({ ...v, id: nextId++, buildId, addedAt: now.toISOString() });
+    versions.push({ ...v, pobVersion: v.pobVersion ?? null, previous: null, id: nextId++, buildId, addedAt: now.toISOString() });
     builds.find((b) => b.id === buildId)!.updatedAt = now.toISOString();
   };
 
@@ -178,9 +205,9 @@ export function memoryBuildStore(): BuildStore {
       push(buildId, version, now);
       return true;
     },
-    async setStats(versionId, mainSkill, stats) {
+    async setStats(versionId, mainSkill, stats, pobVersion) {
       const v = versions.find((x) => x.id === versionId);
-      if (v) Object.assign(v, { mainSkill, stats });
+      if (v) Object.assign(v, { previous: previousFor(v, pobVersion), mainSkill, stats, pobVersion: pobVersion ?? v.pobVersion });
     },
     async rename(buildId, name) {
       const b = builds.find((x) => x.id === buildId);

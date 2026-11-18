@@ -15,6 +15,14 @@ export interface PobResult {
   stats: Stats;
   mainSkill: string | null;
   messages: string[];
+  /** The bundled Path of Building release that calculated it. */
+  pobVersion?: string | null;
+}
+
+/** The bundled Path of Building release (e.g. "v2.68.1"), without starting it. */
+export async function bundledPobVersion(): Promise<string | null> {
+  if (!isTauri()) return "preview";
+  return invoke<string>("pob_version");
 }
 
 /** Calculates build XML with the Path of Building engine in the Rust shell. */
@@ -125,6 +133,7 @@ export async function modSets(xml: string, mode: Mode, sets: string[][]): Promis
 function previewResult(xml: string): PobResult {
   const level = Number(xml.match(/<Build\b[^>]*\slevel="(\d+)"/)?.[1] ?? 90);
   return {
+    pobVersion: "preview",
     mainSkill: "Preview skill",
     messages: ["Browser preview: sample numbers, not Path of Building"],
     stats: {

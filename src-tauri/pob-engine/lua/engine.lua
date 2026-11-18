@@ -149,11 +149,21 @@ end
 
 --- Loads build XML and returns PoB's numeric main output (what its sidebar and
 --- Calcs tab show), the main skill and PoB's console messages.
+--- The bundled PoB release (scripts/fetch-pob.sh writes it next to src/), so
+--- saved numbers can say which PoB calculated them (patch impact, §3.10).
+local pobVersion = (function()
+	local file = io.open("../VERSION", "r")
+	if not file then return nil end
+	local v = file:read("*l")
+	file:close()
+	return v
+end)()
+
 function api.loadBuild(xmlText)
 	load(xmlText)
 	local stats = numericStats(build.calcsTab.mainOutput)
 	stats.MinionMissing = minionMissing()
-	return { stats = stats, mainSkill = mainSkillName(), messages = messages }
+	return { stats = stats, mainSkill = mainSkillName(), messages = messages, pobVersion = pobVersion }
 end
 
 --- Calculates the build with an item (its text as copied in game or from the

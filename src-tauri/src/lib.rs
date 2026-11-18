@@ -25,6 +25,12 @@ pub fn migrations() -> Vec<Migration> {
             sql: include_str!("../../src/data/migrations/0002_stash_snapshots.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "pob version",
+            sql: include_str!("../../src/data/migrations/0003_pob_version.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -43,6 +49,20 @@ fn engine(app: &tauri::AppHandle) -> Result<&'static Engine, String> {
         })
         .as_ref()
         .map_err(Clone::clone)
+}
+
+/// The bundled Path of Building release (e.g. "v2.68.1"), read without starting it.
+#[tauri::command]
+fn pob_version(app: tauri::AppHandle) -> Result<String, String> {
+    let file = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Could not find the app's files: {e}"))?
+        .join("pob")
+        .join("VERSION");
+    std::fs::read_to_string(file)
+        .map(|v| v.trim().to_string())
+        .map_err(|e| format!("Could not read the bundled Path of Building version: {e}"))
 }
 
 /// Calculates a build (PoB XML from a decoded PoB code) with Path of Building.
@@ -328,6 +348,7 @@ pub fn run() {
             pob_skills,
             pob_trials,
             pob_mercenary,
+            pob_version,
             market_get,
             market_get_bytes,
             build_link_get,

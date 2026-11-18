@@ -44,6 +44,23 @@ describe.each([
     expect((await store.versions(id))[0]).toMatchObject({ mainSkill: "Fireball", stats: { Life: 1 } });
   });
 
+  it("keeps the stats from before a recalculation with another Path of Building", async () => {
+    const store = create();
+    const id = await store.add("Main", { ...version("A"), mainSkill: "Fireball", stats: { Life: 1 }, pobVersion: "v2.67.2" }, day(1));
+    const [v] = await store.versions(id);
+    expect(v).toMatchObject({ pobVersion: "v2.67.2", previous: null });
+    await store.setStats(v.id, "Fireball", { Life: 1 }, "v2.67.2");
+    expect((await store.versions(id))[0].previous).toBeNull();
+    await store.setStats(v.id, "Fireball of Radiation", { Life: 2 }, "v2.68.1");
+    expect((await store.versions(id))[0]).toMatchObject({
+      stats: { Life: 2 },
+      pobVersion: "v2.68.1",
+      previous: { stats: { Life: 1 }, mainSkill: "Fireball", pobVersion: "v2.67.2" },
+    });
+    await store.setStats(v.id, "Fireball of Radiation", { Life: 3 }, "v2.68.1");
+    expect((await store.versions(id))[0].previous).toMatchObject({ pobVersion: "v2.67.2" });
+  });
+
   it("renames, remembers the active build and forgets it when deleted", async () => {
     const store = create();
     const a = await store.add("A", version("A"), day(1));

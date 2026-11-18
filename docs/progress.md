@@ -56,6 +56,10 @@
       main skill picker, Full DPS, Righteous Fire margin and mana check.
       (Built 2026-11-18 as v0.15.0; test build
       `docs/test-builds/goratha-fireball-radiation-rf.txt`.)
+- [x] Patch impact (design doc §3.10, from the "later" row). (Built
+      2026-11-18 as v0.18.0; check once: install, open the app and use
+      "Recalculate all" once; builds saved before v0.18.0 count as calculated
+      by an earlier Path of Building.)
 
 ## Session notes
 
@@ -374,6 +378,15 @@
   Luminary: Flame Link level 25 (21 + 4 from gear), 345–517 base plus 3% of
   14,885 life, +15% buff effect, +257% light radius: 1,927–2,346 fire damage
   to the mercenary's hits (about 4,052–4,692 with 3.29's rules).
+- **Patch impact:** the engine returns `pobVersion` (read once from
+  `../VERSION`, written by `fetch-pob.sh`); the shell's `pob_version` reads
+  the same file without starting PoB. `setStats` keeps the old stats as
+  `previous` when another release recalculates them (and keeps the first
+  `previous` across repeated recalculations with the same release).
+  Measured 2.67.2 → 2.68.1 with both PoB downloads on the test builds (main
+  group pinned): Reliquarian DPS 5.36M → 5.52M, chaos max hit 18,358 → 9,662
+  with chaos resistance capped (cause not found yet); Luminary effective HP
+  366,940 → 412,356, physical max hit 14,339 → 16,038; Goratha's unchanged.
 
 ## Usage log (claude.ai → Settings → Usage)
 

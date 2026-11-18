@@ -32,6 +32,7 @@ fn calculates_a_build_like_path_of_building() {
     let build = engine.load_build(xml).expect("build loads");
 
     assert_eq!(build.main_skill.as_deref(), Some("Fireball"));
+    assert!(build.pob_version.as_deref().is_some_and(|v| v.starts_with('v')), "{:?}", build.pob_version);
     assert_close(&build.stats, "CombinedDPS", 2848.596511);
     assert_close(&build.stats, "TotalDPS", 1608.566667);
     assert_close(&build.stats, "AverageHit", 1206.425);

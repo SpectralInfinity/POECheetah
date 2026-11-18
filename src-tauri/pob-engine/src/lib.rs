@@ -29,6 +29,9 @@ pub struct BuildStats {
     /// PoB's console messages while loading (e.g. missing data warnings).
     #[serde(default)]
     pub messages: Vec<String>,
+    /// The bundled Path of Building release that calculated it (e.g. "v2.68.1").
+    #[serde(default)]
+    pub pob_version: Option<String>,
 }
 
 /// A build calculated with an item in one slot.

@@ -453,10 +453,24 @@ uses plain Fireball or Fire Trap as a stand-in, labelled in the skill
 group) are flagged, not guessed. Build this after PoB's 3.30 update, so the
 test build calculates its real skill.
 
-### 3.10 Patch impact (added 2026-10-10)
+### 3.10 Patch impact (added 2026-10-10; built 2026-11-18 as v0.18.0)
 
 When the bundled PoB is updated for a patch, recalculate saved builds and
 show what the patch changed for each.
+
+Built as: every calculation records the bundled PoB release (`pobVersion`,
+from `src-tauri/pob/VERSION`; migration 0003 adds `pob_version` and
+`previous` to `build_versions`). When saved builds' numbers came from another
+release (or from before v0.18.0 recorded it), a notice offers to recalculate
+them all; the old numbers are kept as `previous` and each build shows "What
+the update changed" (headline stats, and the main skill if it changed). The
+same code and settings, so the difference is the patch plus, for builds
+saved on the old league's tree, the tree conversion. Measured on the owner's
+builds, PoB v2.67.2 → v2.68.1 (3.30): Reliquarian DPS +3%, chaos max hit
+18,358 → 9,662 (chaos resistance still capped: not yet explained);
+Luminary effective HP +12%, physical max hit +12% (Flame Link's buff on the
+mercenary isn't in its stats: see the Mercenary panel); Goratha's Chase
+Setup unchanged.
 
 ### 3.11 Meta comparison with poe.ninja (added 2026-10-10)
 
@@ -795,7 +809,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first (v0.14.0), then Fates (v0.16.0), then mercenaries (v0.17.0) | Your body parts ranked on your build; a copied body part says whether to attach it; every Fate judged on your build; what your Link skills give your mercenary |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
 | 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS, Righteous Fire margin warning, mana check (built 2026-11-18 as v0.15.0) | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS; the test build's audit shows its Righteous Fire margin and which map mods would make it burn faster than it regenerates |
-| later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
+| later | Patch impact (§3.10, built 2026-11-18 as v0.18.0); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions
 

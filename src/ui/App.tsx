@@ -9,6 +9,7 @@ import { formatPrice, gemPrice, gemQuery, tradeSearchUrl, type NinjaItemLine } f
 import { ASCENDANCY_POINTS, planPassives, type PassiveAdvice, type PassiveResult } from "../core/passives";
 import type { UpgradeResult } from "../core/upgrades";
 import { diffStats, formatStat, HEADLINE_STATS, type Stats } from "../core/stats";
+import { outdated, patchImpact } from "../core/patch";
 import {
   memoryBuildStore,
   sqlBuildStore,
@@ -20,7 +21,7 @@ import {
 import { isTauri, openDb } from "../data/db";
 import { MODE_TEXT, message, signed } from "./format";
 import { loadGemPrices, loadLeagues, openLink, savedLeague, saveLeague } from "./market";
-import { analyse, audit, calculate, passives, rareSearch, skills, upgrades, type PobResult, type SkillDps } from "./pob";
+import { analyse, audit, bundledPobVersion, calculate, passives, rareSearch, skills, upgrades, type PobResult, type SkillDps } from "./pob";
 import { saveChoice, savedChoice } from "./choice";
 import { BuildAudit } from "./Audit";
 import { CompareBuilds } from "./Compare";
@@ -44,7 +45,7 @@ async function prepare(code: string): Promise<{ version: NewVersion; warning: st
   try {
     const result = await calculate(applyChoice(xml));
     return {
-      version: { code: clean, summary, mainSkill: result.mainSkill, stats: result.stats },
+      version: { code: clean, summary, mainSkill: result.mainSkill, stats: result.stats, pobVersion: result.pobVersion ?? null },
       warning: "",
     };
   } catch (e) {
@@ -74,6 +75,11 @@ export function App() {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [bundled, setBundled] = useState<string | null>(null);
+
+  useEffect(() => {
+    bundledPobVersion().then(setBundled, () => setBundled(null));
+  }, []);
 
   useEffect(() => {
     (async () => setStore(isTauri() ? sqlBuildStore(await openDb()) : memoryBuildStore()))().catch((e) =>
@@ -133,11 +139,28 @@ export function App() {
   const recalculate = (v: BuildVersion) =>
     run("Calculating with Path of Building…", async () => {
       const result = await calculate(applyChoice(await decodeBuildCode(v.code), savedChoice(v.buildId)));
-      await store!.setStats(v.id, result.mainSkill, result.stats);
+      await store!.setStats(v.id, result.mainSkill, result.stats, result.pobVersion);
       await refresh(activeId);
     });
 
   const active = builds.find((b) => b.id === activeId) ?? null;
+  const stale = outdated(builds, bundled);
+
+  // Patch impact (design doc §3.10): recalculate every build with the bundled PoB, keeping the old numbers.
+  const recalculateAll = () =>
+    run(`Recalculating ${stale.length} builds with Path of Building ${bundled}…`, async () => {
+      const failed: string[] = [];
+      for (const b of stale) {
+        try {
+          const result = await calculate(applyChoice(await decodeBuildCode(b.latest.code), savedChoice(b.id)));
+          await store!.setStats(b.latest.id, result.mainSkill, result.stats, result.pobVersion);
+        } catch {
+          failed.push(b.name);
+        }
+      }
+      await refresh(activeId);
+      return failed.length ? `Path of Building couldn't calculate: ${failed.join(", ")}.` : "";
+    });
 
   return (
     <div className="layout">
@@ -174,6 +197,19 @@ export function App() {
       <main className="main">
         {busy && <p className="busy">{busy}</p>}
         {error && <p className="error">{error}</p>}
+        {stale.length > 0 && !adding && (
+          <section className="panel">
+            <p className="small">
+              Path of Building was updated to {bundled}. {stale.length === 1 ? "1 saved build was" : `${stale.length} saved builds were`}{" "}
+              calculated with an older version: recalculate to see what the update (a game patch) changed for each.
+            </p>
+            <div className="actions">
+              <button type="button" onClick={recalculateAll} disabled={!store || busy !== ""}>
+                Recalculate {stale.length === 1 ? "it" : `all ${stale.length}`}
+              </button>
+            </div>
+          </section>
+        )}
         {!isTauri() && (
           <p className="muted small">Browser preview: builds aren't saved and stats are sample numbers.</p>
         )}
@@ -385,6 +421,13 @@ function BuildView(props: {
           </p>
         )}
       </section>
+
+      {latest.stats && latest.previous && !custom && (
+        <PatchImpactPanel
+          previous={latest.previous}
+          current={{ stats: latest.stats, mainSkill: latest.mainSkill, pobVersion: latest.pobVersion }}
+        />
+      )}
 
       {stats && <Health findings={checkBuild(stats, latest.summary.level)} />}
 
@@ -713,6 +756,30 @@ function StatGrid({ stats }: { stats: Stats }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** What a Path of Building update (a game patch) changed for this build (design doc §3.10). */
+type Calculated = Parameters<typeof patchImpact>[0];
+
+function PatchImpactPanel(props: { previous: Calculated; current: Calculated }) {
+  const p = patchImpact(props.previous, props.current);
+  if (!p) return null;
+  return (
+    <section className="panel">
+      <h3>What the update changed</h3>
+      <p className="small">{p.text}</p>
+      {p.skillChange && (
+        <p className="muted small">
+          Main skill: {p.skillChange.before ?? "none"} → {p.skillChange.after ?? "none"}.
+        </p>
+      )}
+      <StatChangeList changes={p.changes} />
+      <p className="muted small">
+        Path of Building {p.to} against {p.from}, same code and settings: the game patch's changes, plus the passive
+        tree moving to the new league's for builds saved on the old one.
+      </p>
+    </section>
   );
 }
 
