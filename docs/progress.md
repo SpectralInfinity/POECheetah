@@ -49,11 +49,11 @@
       Wickerman (built 2026-11-07 as v0.14.0; check once 3.30 is out:
       copy a real body part and see the app read it), then Fates, then
       mercenaries.
-- [ ] 11. Once Path of Building's 3.30 update is out: update PoB, then build
-      tiers and the main skill (design doc §3.14): tier picker, progression
-      table, compare by tier, main skill picker, Full DPS, Righteous Fire
-      margin warning. Test build:
-      `docs/test-builds/goratha-fireball-radiation-rf.txt`.
+- [x] 11. Path of Building 3.30 (v2.68.1), build tiers and the main skill
+      (design doc §3.14): tier picker, progression table, compare by tier,
+      main skill picker, Full DPS, Righteous Fire margin and mana check.
+      (Built 2026-11-18 as v0.15.0; test build
+      `docs/test-builds/goratha-fireball-radiation-rf.txt`.)
 
 ## Session notes
 
@@ -336,6 +336,22 @@
   Facebreaker Doryani's Touch 36M → 11M, 175k, 7k phys; Eccentricity 44M →
   13M, 27k, 10k phys; Kineticist aurabot 0 (merc not in PoB), 4.7M, 67k phys.
   Reliquarian for comparison: 5.4M → 1.6M, 57k, 23k chaos. Ideas: §3.12.
+
+- **11:** Path of Building v2.68.1 (3.30): it uses compound assignments
+  (`x += 1`) that the stock LuaJIT can't read, so `scripts/fetch-pob.sh`
+  rewrites them (three lines) and fails if any are left; objects are now
+  created as `new("Item"):Item(text)`; the trade query comes back as a table
+  (wrapped with its sort as before). Only the current tree is downloaded, so a
+  build saved on an older tree loads on 3.30's (PoB's "Convert"). The owner's
+  Reliquarian showed why the main skill must be pinned: PoB 2.68 grants Aspect
+  of Arakaali from its boots and the tree-granted group changed, so the saved
+  main group pointed at Aspect (0 DPS); `applyChoice` pins granted groups
+  before every calculation. Tiers, main skill picker, Full DPS, Righteous
+  Fire margin and mana check as in design doc §3.14; on Goratha's Red Maps
+  (3.30 tree): Fire Trap 1.22M, Full DPS 1.62M, Righteous Fire +1,263 life/s
+  net, "of Smothering" leaves +227, "of Exposure" +707. CI now tests pull
+  requests only and builds the installer only for releases (manual run on
+  main) and tags, to save Actions minutes and storage.
 
 ## Usage log (claude.ai → Settings → Usage)
 

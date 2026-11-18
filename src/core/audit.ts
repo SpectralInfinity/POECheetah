@@ -2,6 +2,7 @@ import { change } from "./analysis";
 import { goalGain, type Goal } from "./goals";
 import { drawbacks } from "./passives";
 import type { Stats } from "./stats";
+import type { SustainResult } from "./sustain";
 
 // Build audit (design doc §3.12 items 13, 15, 18, 20): what the config assumes
 // and whether the build makes it true against a boss, what each flask is for
@@ -47,6 +48,8 @@ export interface AuditResult {
   warnings: { stat: string; text: string }[];
   dotCap: number;
   text: { items: { slot: string; name: string; raw: string }[]; nodes: string[]; gems: string[] };
+  /** Self-damage against regeneration, with what makes it worse, and mana (design doc §3.14). */
+  sustain?: SustainResult;
 }
 
 const effect = (goal: Goal, before: Stats, after: Stats, noDamage: boolean) => {

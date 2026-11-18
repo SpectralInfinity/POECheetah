@@ -77,6 +77,25 @@ export async function audit(xml: string): Promise<AuditResult> {
   return invoke<AuditResult>("pob_audit", { xml });
 }
 
+/** One skill group's main skill and DPS when it is the main skill (design doc §3.14). */
+export interface SkillDps {
+  slot: string;
+  label: string;
+  gems: string[];
+  source?: string;
+  name: string;
+  dps: number;
+  /** Ticked "Include in Full DPS" in PoB. */
+  fullDps: boolean;
+  main: boolean;
+}
+
+/** Every skill group's DPS as the main skill, and PoB's Full DPS (one recalculation per group). */
+export async function skills(xml: string): Promise<{ skills: SkillDps[]; fullDps: number }> {
+  if (!isTauri()) return previewSkills(xml);
+  return invoke("pob_skills", { xml });
+}
+
 /** The build in `mode` with each set of modifier lines added (3.30 Wickerman parts), and lines PoB doesn't understand. */
 export async function modSets(xml: string, mode: Mode, sets: string[][]): Promise<{ before: Stats; results: { stats: Stats; unparsed: string[] }[] }> {
   if (!isTauri()) return previewModSets(xml, mode, sets);
@@ -360,6 +379,14 @@ function previewAudit(xml: string): AuditResult {
     ],
     warnings: [{ stat: "ReqInt", text: "You do not meet the Intelligence requirement of Malevolence" }],
     dotCap: 35_791_394,
+    sustain: {
+      base: { Life: 6306, LifeRegenRecovery: 1726, TotalBuildDegen: 463, FireResist: 90, FireResistOverCap: 208, ManaUnreserved: 50, ManaCost: 0, LifeCost: 121, LifePerSecondCost: 210, ManaRegenRecovery: 40 },
+      scenarios: [
+        { label: 'Map mod "of Exposure" (red maps: −12% to all maximum resistances)', stats: { LifeRegenRecovery: 1630, TotalBuildDegen: 923 } },
+        { label: 'Map mod "of Smothering" (red maps: 60% less life recovery rate)', stats: { LifeRegenRecovery: 690, TotalBuildDegen: 463 } },
+        { label: "No endurance charges", stats: { LifeRegenRecovery: 1519, TotalBuildDegen: 463 } },
+      ],
+    },
     text: {
       items: [
         { slot: "Boots", name: "Pain Spur, Wyrmscale Boots", raw: "Grants Level 20 Aspect of Arakaali Skill" },
@@ -368,6 +395,20 @@ function previewAudit(xml: string): AuditResult {
       nodes: ["Poisons you inflict deal Damage 20% faster"],
       gems: ["Poisonous Concoction of Bouncing", "Flesh and Stone"],
     },
+  };
+}
+
+/** Sample skills shaped like a Righteous Fire build with an auto-cast Fireball. */
+function previewSkills(xml: string): { skills: SkillDps[]; fullDps: number } {
+  const dps = previewResult(xml).stats.CombinedDPS ?? 0;
+  const s = (slot: string, gems: string[], name: string, x: number, main = false, fullDps = false) => ({ slot, label: "", gems, name, dps: dps * x, fullDps, main });
+  return {
+    skills: [
+      s("Body Armour", ["Righteous Fire", "Efficacy", "Fire Trap"], "Righteous Fire", 0.3, true, true),
+      s("Helmet", ["Fireball of Radiation", "Spellslinger", "Burning Damage"], "Fireball of Radiation", 1, false, true),
+      s("Boots", ["Shield Charge", "Faster Attacks"], "Shield Charge", 0.001),
+    ],
+    fullDps: dps * 1.3,
   };
 }
 

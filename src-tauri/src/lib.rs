@@ -139,6 +139,14 @@ async fn pob_audit(app: tauri::AppHandle, xml: String) -> Result<Compared, Strin
         .map_err(|e| format!("Path of Building stopped: {e}"))?
 }
 
+/// Every skill group's DPS when it is the main skill, and PoB's Full DPS.
+#[tauri::command]
+async fn pob_skills(app: tauri::AppHandle, xml: String) -> Result<Compared, String> {
+    tauri::async_runtime::spawn_blocking(move || engine(&app)?.skills(&xml))
+        .await
+        .map_err(|e| format!("Path of Building stopped: {e}"))?
+}
+
 /// Where the game keeps its log on Windows (standalone and Steam installs),
 /// for the run tracker (design doc §3.4).
 const LOG_CANDIDATES: [&str; 4] = [
@@ -301,6 +309,7 @@ pub fn run() {
             pob_compare,
             pob_audit,
             pob_mod_sets,
+            pob_skills,
             market_get,
             market_get_bytes,
             build_link_get,

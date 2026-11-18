@@ -347,7 +347,7 @@ with PoB's pinnacle-boss settings, and show both next to the configured
 number. Also rank alternative support gems for the main skill, pantheon
 choices and flask mods ("try every option in PoB and rank").
 
-### 3.14 Build tiers and the main skill (added 2026-11-15, owner's request)
+### 3.14 Build tiers and the main skill (added 2026-11-15, owner's request; built 2026-11-18 as v0.15.0)
 
 Found on a streamer's 3.30 build (`docs/test-builds/goratha-fireball-radiation-rf.txt`):
 one PoB code can hold several passive trees, item sets and skill sets, each
@@ -394,6 +394,28 @@ calculate another tier (checked 2026-11-15 on that build: five tiers, 28k to
    each missing point adds to the burn. The fire mastery "1 life per second
    per 1% uncapped fire resistance" makes resistance past the cap
    regeneration too, so count both.
+7. **Mana check** (added 2026-11-16). Per tier: mana left after reservations
+   (Spellslinger, auras) against what the main skill costs per cast and per
+   second casting non-stop, against mana regeneration. Say when the skill
+   can't be cast at all, or how many seconds the free mana lasts; a skill
+   paid in life (Lifetap) counts as fine. Seen on that build: two
+   Spellslingers leave 96 of 768 mana and one aura at 28-60 (about 24 mana/s
+   spent against 28 regenerated); one Spellslinger and two auras at 68+;
+   self-cast with Lifetap and 94% reserved in Red Maps.
+
+Built (v0.15.0): items 1-7. Tier choice and main skill are XML edits
+(`applyChoice` in `src/core/compare.ts`) applied before every calculation,
+remembered per saved build (also by the item check pop-out); the engine's
+`skills` lists every group's DPS; the audit's `sustain` gives items 6-7, the
+map mods as PoB's own modifier lines ("of Exposure", "of Smothering") or
+config options (curses on you, endurance charges). Not done: the advisors
+still rank by the main skill's DPS, not Full DPS (Full DPS is shown next to
+it); the progression table is calculated at the code's single character
+level. Also from PoB 2.68 (3.30): a build saved on an older passive tree is
+loaded on the current one, like PoB's "Convert" (only the current tree is
+downloaded), and granted skill groups are pinned so the main skill stays put
+(found on the owner's Reliquarian: its main skill jumped to Aspect of
+Arakaali, a skill PoB 2.68 grants from its boots).
 
 Skills PoB doesn't know yet (Fireball of Radiation in PoB 2.67.2; that build
 uses plain Fireball or Fire Trap as a stand-in, labelled in the skill
@@ -741,7 +763,7 @@ One session = one row. Each ends with a pushed build you can install from CI.
 | 9 | Earnings and farming advisor (§3.5); needs GGG OAuth approval | Currency per hour per strategy from your own play |
 | 10 | League mechanics for 3.30 (§3.13, §3.6): the Wickerman first, then Fates, then mercenaries | Your body parts ranked on your build; a copied body part says whether to attach it |
 | 7d | Minion builds (built 2026-11-02) (spectres, golems, Animate Guardian…): PoB puts their damage in the minion's output (`output.Minion`), so every advisor sees DPS 0 and ranks by effective HP only (found 2026-11-02 on a level 100 spectre Necromancer from the ladder) | A spectre build's passives, items, item check, comparison and audit are ranked by its minions' DPS |
-| 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS, Righteous Fire margin warning | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS; the test build's audit shows its Righteous Fire margin and which map mods would make it burn faster than it regenerates |
+| 11 | Next, once Path of Building's 3.30 update is out: update PoB (`src-tauri/pob-version.txt`), then build tiers and the main skill (§3.14): tier picker, progression table, compare by tier, main skill picker, Full DPS, Righteous Fire margin warning, mana check (built 2026-11-18 as v0.15.0) | The streamer test build shows all five tiers with its real Fireball of Radiation; your builds pick a tier and a main skill; an auto-cast main skill is ranked by its own DPS; the test build's audit shows its Righteous Fire margin and which map mods would make it burn faster than it regenerates |
 | later | Patch impact (§3.10); content readiness and Foulborn uniques (§3.12); PoE2 via PoB's PoE2 version; Claude explanations | — |
 
 ## 8. Open questions

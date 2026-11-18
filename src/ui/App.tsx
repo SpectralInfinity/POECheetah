@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { APP_BUILD, APP_VERSION } from "../buildInfo";
-import { decodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
+import { decodeBuildCode, encodeBuildCode, readBuildSummary, type BuildSummary } from "../core/buildCode";
+import { activeTier, applyChoice, listTiers, type BuildChoice, type GroupKey } from "../core/compare";
 import { change, pantheonAdvice, supportAdvice, type Analysis } from "../core/analysis";
 import { checkBuild, type Finding } from "../core/health";
 import { GOALS, goalLabel, modeFor, type Goal, type Mode } from "../core/goals";
@@ -19,7 +20,8 @@ import {
 import { isTauri, openDb } from "../data/db";
 import { MODE_TEXT, message, signed } from "./format";
 import { loadGemPrices, loadLeagues, openLink, savedLeague, saveLeague } from "./market";
-import { analyse, audit, calculate, passives, rareSearch, upgrades } from "./pob";
+import { analyse, audit, calculate, passives, rareSearch, skills, upgrades, type PobResult, type SkillDps } from "./pob";
+import { saveChoice, savedChoice } from "./choice";
 import { BuildAudit } from "./Audit";
 import { CompareBuilds } from "./Compare";
 import { ItemCheckPanel } from "./ItemCheck";
@@ -38,7 +40,7 @@ async function prepare(code: string): Promise<{ version: NewVersion; warning: st
   const xml = await decodeBuildCode(clean);
   const summary = readBuildSummary(xml);
   try {
-    const result = await calculate(xml);
+    const result = await calculate(applyChoice(xml));
     return {
       version: { code: clean, summary, mainSkill: result.mainSkill, stats: result.stats },
       warning: "",
@@ -128,7 +130,7 @@ export function App() {
 
   const recalculate = (v: BuildVersion) =>
     run("Calculating with Path of Building…", async () => {
-      const result = await calculate(await decodeBuildCode(v.code));
+      const result = await calculate(applyChoice(await decodeBuildCode(v.code), savedChoice(v.buildId)));
       await store!.setStats(v.id, result.mainSkill, result.stats);
       await refresh(activeId);
     });
@@ -187,10 +189,10 @@ export function App() {
             disabled={busy !== ""}
             onUpdate={addVersion}
             onRecalculate={recalculate}
-            onAnalyse={async (mode) => analyse(await decodeBuildCode(active.latest.code), mode)}
-            onPassives={async (mode) => passives(await decodeBuildCode(active.latest.code), mode)}
-            onUpgrades={async (mode, names) => upgrades(await decodeBuildCode(active.latest.code), mode, names)}
-            onRareSearch={async (mode, slot, weights) => rareSearch(await decodeBuildCode(active.latest.code), mode, slot, weights)}
+            onAnalyse={analyse}
+            onPassives={passives}
+            onUpgrades={upgrades}
+            onRareSearch={rareSearch}
             onRename={(name) => run("", async () => (await store!.rename(active.id, name), await refresh(active.id)))}
             onDelete={() => run("", async () => (await store!.remove(active.id), await refresh(null)))}
           />
@@ -242,10 +244,10 @@ function BuildView(props: {
   disabled: boolean;
   onUpdate: (code: string) => void;
   onRecalculate: (v: BuildVersion) => void;
-  onAnalyse: (mode: Mode) => Promise<Analysis>;
-  onPassives: (mode: Mode) => Promise<PassiveResult>;
-  onUpgrades: (mode: Mode, uniques: string[]) => Promise<UpgradeResult>;
-  onRareSearch: RareSearchFn;
+  onAnalyse: (xml: string, mode: Mode) => Promise<Analysis>;
+  onPassives: (xml: string, mode: Mode) => Promise<PassiveResult>;
+  onUpgrades: (xml: string, mode: Mode, uniques: string[]) => Promise<UpgradeResult>;
+  onRareSearch: (xml: string, ...rest: Parameters<RareSearchFn>) => ReturnType<RareSearchFn>;
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
@@ -260,6 +262,34 @@ function BuildView(props: {
   const [league, setLeague] = useState(savedLeague() ?? "");
   const [leagues, setLeagues] = useState<string[]>([]);
   const mode = modeFor(goal, countAssumptions);
+
+  // The tier and main skill every panel calculates (design doc §3.14).
+  const [choice, setChoiceState] = useState<BuildChoice>(() => savedChoice(build.id));
+  const setChoice = (c: BuildChoice) => {
+    setChoiceState(c);
+    saveChoice(build.id, c);
+  };
+  const [base, setBase] = useState<string | null>(null);
+  useEffect(() => {
+    decodeBuildCode(latest.code).then(setBase, () => setBase(null));
+  }, [latest.code]);
+  const tiers = useMemo(() => (base ? listTiers(base) : []), [base]);
+  const tierTitle = base ? (tiers.find((t) => t.title === choice.tier) ?? activeTier(base, tiers)).title : "";
+  const xml = useMemo(() => (base ? applyChoice(base, choice) : null), [base, choice]);
+  const [buildCode, setBuildCode] = useState(latest.code);
+  useEffect(() => {
+    if (xml) encodeBuildCode(xml).then(setBuildCode, () => setBuildCode(latest.code));
+  }, [xml, latest.code]);
+  const custom = Boolean(choice.tier) || Boolean(choice.main?.[tierTitle]);
+  const [chosen, setChosen] = useState<PobResult | null>(null);
+  useEffect(() => {
+    setChosen(null);
+    if (xml && custom) calculate(xml).then(setChosen, () => setChosen(null));
+  }, [xml, custom]);
+  const stats = custom ? chosen?.stats ?? null : latest.stats;
+  const mainSkill = custom ? chosen?.mainSkill ?? null : latest.mainSkill;
+  const variant = `${latest.id}-${tierTitle}-${JSON.stringify(choice.main?.[tierTitle] ?? null)}`;
+  const run = <T,>(fn: (xml: string) => Promise<T>) => async () => fn(xml ?? applyChoice(await decodeBuildCode(latest.code)));
 
   useEffect(() => {
     loadLeagues()
@@ -307,17 +337,44 @@ function BuildView(props: {
         </div>
         <p className="muted">
           {describeBuild(latest.summary)}
-          {latest.mainSkill && ` · ${latest.mainSkill}`} · updated {when(latest.addedAt)}
+          {mainSkill && ` · ${mainSkill}`} · updated {when(latest.addedAt)}
         </p>
-        {latest.stats?.MinionDamage === 1 && (
+        {tiers.length > 1 && (
+          <div className="actions small">
+            <label htmlFor="tier">Tier</label>
+            <select
+              id="tier"
+              value={tierTitle}
+              onChange={(e) => setChoice({ ...choice, tier: e.target.value === activeTier(base!, tiers).title ? undefined : e.target.value })}
+            >
+              {tiers.map((t) => (
+                <option key={t.title} value={t.title}>
+                  {t.title}
+                  {base && t.title === activeTier(base, tiers).title ? " (as saved)" : ""}
+                </option>
+              ))}
+            </select>
+            <span className="muted">Every panel below calculates this tier.</span>
+          </div>
+        )}
+        {custom && !chosen && <p className="muted small">Calculating {tierTitle}…</p>}
+        {stats?.MinionDamage === 1 && (
           <p className="muted small">
-            Combined DPS is your minions': {formatStat("number", latest.stats.MinionDPS ?? 0)} each ×{" "}
-            {latest.stats.MinionCount ?? 1} at once (Path of Building's active minion limit). The advice ranks by it.
+            Combined DPS is your minions': {formatStat("number", stats.MinionDPS ?? 0)} each ×{" "}
+            {stats.MinionCount ?? 1} at once (Path of Building's active minion limit). The advice ranks by it.
           </p>
         )}
-        {latest.stats ? (
-          <StatGrid stats={latest.stats} />
-        ) : (
+        {stats ? (
+          <>
+            <StatGrid stats={stats} />
+            {(stats.FullDPS ?? 0) > 0 && Math.abs((stats.FullDPS ?? 0) - (stats.CombinedDPS ?? 0)) > 1 && (
+              <p className="muted small">
+                Full DPS (the skills ticked "Include in Full DPS" in Path of Building, together): {formatStat("number", stats.FullDPS ?? 0)}. The advice ranks
+                by the main skill's DPS; choose the main skill below.
+              </p>
+            )}
+          </>
+        ) : custom ? null : (
           <p>
             No stats yet.{" "}
             <button type="button" className="link" onClick={() => props.onRecalculate(latest)} disabled={props.disabled}>
@@ -327,9 +384,22 @@ function BuildView(props: {
         )}
       </section>
 
-      {latest.stats && <Health findings={checkBuild(latest.stats, latest.summary.level)} />}
+      {stats && <Health findings={checkBuild(stats, latest.summary.level)} />}
 
-      {latest.stats && (
+      {stats && xml && (
+        <SkillList
+          key={`s${variant}`}
+          xml={xml}
+          tier={tierTitle}
+          disabled={props.disabled}
+          onMain={(key) => setChoice({ ...choice, main: { ...choice.main, [tierTitle]: key } })}
+          onReset={choice.main?.[tierTitle] ? () => setChoice({ ...choice, main: { ...choice.main, [tierTitle]: undefined! } }) : undefined}
+        />
+      )}
+
+      {stats && base && tiers.length > 1 && <TierTable key={`t${latest.id}`} base={base} choice={choice} tiers={tiers.map((t) => t.title)} current={tierTitle} disabled={props.disabled} />}
+
+      {stats && (
         <AdviceSettings
           goal={goal}
           onGoal={(g) => {
@@ -350,38 +420,38 @@ function BuildView(props: {
         />
       )}
 
-      {latest.stats && (
+      {stats && (
         <NextPassives
-          key={`p${latest.id}`}
-          mainSkill={latest.mainSkill}
+          key={`p${variant}`}
+          mainSkill={mainSkill}
           goal={goal}
           mode={mode}
           disabled={props.disabled}
-          onRun={props.onPassives}
+          onRun={(m) => run((x) => props.onPassives(x, m))()}
         />
       )}
 
-      {latest.stats && (
+      {stats && (
         <ItemUpgrades
-          key={`u${latest.id}`}
+          key={`u${variant}`}
           goal={goal}
           mode={mode}
           league={league}
           disabled={props.disabled}
-          onRun={props.onUpgrades}
-          onRareSearch={props.onRareSearch}
+          onRun={(m, names) => run((x) => props.onUpgrades(x, m, names))()}
+          onRareSearch={(m, slot, weights) => run((x) => props.onRareSearch(x, m, slot, weights))()}
         />
       )}
 
-      {latest.stats && (
-        <DeepAnalysis key={`a${latest.id}`} mode={mode} league={league} disabled={props.disabled} onRun={props.onAnalyse} />
+      {stats && (
+        <DeepAnalysis key={`a${variant}`} mode={mode} league={league} disabled={props.disabled} onRun={(m) => run((x) => props.onAnalyse(x, m))()} />
       )}
 
-      {latest.stats && (
+      {stats && (
         <MetaComparison
-          key={`m${latest.id}`}
-          code={latest.code}
-          skill={latest.mainSkill}
+          key={`m${variant}`}
+          code={buildCode}
+          skill={mainSkill}
           ascendancy={latest.summary.ascendancy}
           goal={goal}
           mode={mode}
@@ -390,23 +460,23 @@ function BuildView(props: {
         />
       )}
 
-      {latest.stats && (
-        <WickermanPanel key={`w${build.id}`} buildId={build.id} code={latest.code} goal={goal} mode={mode} disabled={props.disabled} />
+      {stats && (
+        <WickermanPanel key={`w${variant}`} buildId={build.id} code={buildCode} goal={goal} mode={mode} disabled={props.disabled} />
       )}
 
-      {latest.stats && (
+      {stats && (
         <BuildAudit
-          key={`b${latest.id}`}
+          key={`b${variant}`}
           goal={goal}
           disabled={props.disabled}
-          onRun={async () => audit(await decodeBuildCode(latest.code))}
+          onRun={run(audit)}
         />
       )}
 
-      {latest.stats && (
+      {stats && (
         <CompareBuilds
-          key={`c${latest.id}`}
-          code={latest.code}
+          key={`c${variant}`}
+          code={buildCode}
           goal={goal}
           mode={mode}
           league={league}
@@ -414,14 +484,14 @@ function BuildView(props: {
         />
       )}
 
-      {latest.stats && (
+      {stats && (
         <ItemCheckPanel
           disabled={props.disabled}
           ctx={{ buildId: build.id, buildName: build.name, code: latest.code, level: latest.summary.level, goal, mode, league }}
         />
       )}
 
-      {latest.stats && previous?.stats && <Changes before={previous.stats} after={latest.stats} since={previous.addedAt} />}
+      {latest.stats && previous?.stats && !custom && <Changes before={previous.stats} after={latest.stats} since={previous.addedAt} />}
 
       <RunTracker />
 
@@ -466,6 +536,164 @@ function BuildView(props: {
         </button>
       </section>
     </>
+  );
+}
+
+const fmt = (n: number | undefined) => formatStat("number", n ?? 0);
+
+/** Every skill's own DPS, to choose the main skill the advice ranks by (design doc §3.14). */
+function SkillList(props: { xml: string; tier: string; disabled: boolean; onMain: (key: GroupKey) => void; onReset?: () => void }) {
+  const [list, setList] = useState<{ skills: SkillDps[]; fullDps: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      setList(await skills(props.xml));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const shown = (list?.skills ?? []).filter((s) => s.dps > 0 || s.main).sort((a, b) => b.dps - a.dps);
+  const main = shown.find((s) => s.main);
+  const best = shown[0];
+  return (
+    <section className="panel">
+      <h3>Main skill{props.tier ? ` · ${props.tier}` : ""}</h3>
+      <p className="muted small">
+        The advice ranks by the main skill's damage. Path of Building calculates auto-cast skills too (Spellslinger,
+        Cast on Crit…) at their trigger rate. If your damage comes from another skill than the one saved as main, choose it here.
+      </p>
+      <div className="actions">
+        <button type="button" className={list ? "secondary" : ""} onClick={load} disabled={props.disabled || busy}>
+          {busy ? "Calculating each skill…" : list ? "Calculate again" : "Show every skill's damage"}
+        </button>
+        {props.onReset && (
+          <button type="button" className="link" onClick={props.onReset}>
+            Use the main skill saved in the code
+          </button>
+        )}
+      </div>
+      {error && <p className="error">{error}</p>}
+      {list && (
+        <>
+          {main && best && best !== main && best.dps > main.dps * 1.1 && (
+            <p className="warning small">
+              {best.name} does more damage ({fmt(best.dps)} DPS) than the main skill {main.name} ({fmt(main.dps)} DPS).
+            </p>
+          )}
+          <table className="scenarios small">
+            <tbody>
+              {shown.map((s, i) => (
+                <tr key={i}>
+                  <td>
+                    <strong>{s.name}</strong> <span className="muted">{s.slot && s.slot !== "None" ? `${s.slot}: ` : ""}{s.gems.filter(Boolean).join(", ")}</span>
+                  </td>
+                  <td>{fmt(s.dps)} DPS{s.fullDps ? " · in Full DPS" : ""}</td>
+                  <td>
+                    {s.main ? (
+                      <span className="muted">main</span>
+                    ) : (
+                      <button type="button" className="link" onClick={() => props.onMain({ slot: s.slot, gems: s.gems })} disabled={props.disabled}>
+                        make main
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {list.fullDps > 0 && <p className="muted small">Full DPS (ticked skills together): {fmt(list.fullDps)}</p>}
+        </>
+      )}
+    </section>
+  );
+}
+
+interface TierRow {
+  tier: string;
+  result: PobResult | null;
+  error?: string;
+}
+
+/** The build tier by tier: how it grows (design doc §3.14). */
+function TierTable(props: { base: string; choice: BuildChoice; tiers: string[]; current: string; disabled: boolean }) {
+  const [rows, setRows] = useState<TierRow[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    setBusy(true);
+    const out: TierRow[] = [];
+    for (const tier of props.tiers) {
+      try {
+        out.push({ tier, result: await calculate(applyChoice(props.base, { ...props.choice, tier })) });
+      } catch (e) {
+        out.push({ tier, result: null, error: message(e) });
+      }
+      setRows([...out]);
+    }
+    setBusy(false);
+  };
+  const level = Number(props.base.match(/<Build\b[^>]*\slevel="(\d+)"/)?.[1] ?? 0);
+  return (
+    <section className="panel">
+      <h3>Tiers</h3>
+      <p className="muted small">
+        This code holds {props.tiers.length} tiers (trees, gems and gear saved together). Calculated at the code's
+        character level ({level}) and gem levels as written, so early tiers can look stronger than they play.
+      </p>
+      <div className="actions">
+        <button type="button" className={rows ? "secondary" : ""} onClick={load} disabled={props.disabled || busy}>
+          {busy ? "Calculating tiers…" : rows ? "Calculate again" : "Calculate every tier"}
+        </button>
+      </div>
+      {rows && (
+        <table className="scenarios small">
+          <thead>
+            <tr>
+              <th>Tier</th>
+              <th>Main skill</th>
+              <th>DPS</th>
+              <th>Life</th>
+              <th>Effective HP</th>
+              <th>Phys max hit</th>
+              <th>Fire res</th>
+              <th>Free mana</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ tier, result, error }) => {
+              const s = result?.stats;
+              return (
+                <tr key={tier} className={tier === props.current ? "active" : ""}>
+                  <td>{tier}</td>
+                  {s ? (
+                    <>
+                      <td>{result?.mainSkill ?? ""}</td>
+                      <td>
+                        {fmt(s.CombinedDPS)}
+                        {(s.FullDPS ?? 0) > (s.CombinedDPS ?? 0) + 1 ? ` (full ${fmt(s.FullDPS)})` : ""}
+                      </td>
+                      <td>{fmt(s.Life)}</td>
+                      <td>{fmt(s.TotalEHP)}</td>
+                      <td>{fmt(s.PhysicalMaximumHitTaken)}</td>
+                      <td>{s.FireResist ?? ""}%</td>
+                      <td>{fmt(s.ManaUnreserved)}</td>
+                    </>
+                  ) : (
+                    <td colSpan={7} className="error">
+                      {error}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

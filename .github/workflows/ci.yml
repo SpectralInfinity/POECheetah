@@ -1,16 +1,16 @@
 name: CI
 
-# Kept small to save GitHub Actions minutes (Windows minutes cost more):
-# - Tests run once per change: on pull requests and on main, not on bare
-#   branch pushes (cloud sessions run the tests before every push).
-# - The Windows installer builds on main, on v* tags, and from a manual run
-#   (Actions → CI → Run workflow, any branch: that's how to try a PR's build).
+# Kept small to save GitHub Actions minutes and storage:
+# - Tests run once per change, on its pull request; not on bare branch pushes
+#   (cloud sessions run the tests before every push) or on merges to main.
+# - The Windows installer builds only on v* tags and manual runs (Actions → CI
+#   → Run workflow): on main with "release" ticked it publishes the release
+#   (release files don't count toward storage); on a branch it keeps the
+#   installer as an artifact for 3 days.
 # - Changes that only touch docs or Markdown run nothing.
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
     paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:

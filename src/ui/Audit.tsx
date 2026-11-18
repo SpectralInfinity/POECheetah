@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { adviseOptions, adviseStance, planFlasks, pobLimits, type AuditResult, type OptionVerdict } from "../core/audit";
 import { goalLabel, type Goal } from "../core/goals";
+import { burnCheck, manaCheck, type SustainResult } from "../core/sustain";
 import { message, signed } from "./format";
 
 const MARK: Record<OptionVerdict, string> = {
@@ -131,6 +132,8 @@ export function BuildAudit(props: { goal: Goal; disabled: boolean; onRun: () => 
             </>
           )}
 
+          {result.sustain && <Sustain sustain={result.sustain} />}
+
           {limits.length > 0 && (
             <>
               <h4>Where Path of Building isn't the whole story</h4>
@@ -146,5 +149,48 @@ export function BuildAudit(props: { goal: Goal; disabled: boolean; onRun: () => 
         </div>
       )}
     </section>
+  );
+}
+
+const SEVERITY = { ok: "fixed", thin: "warning", negative: "critical" } as const;
+
+/** Self-damage against regeneration and the map mods that tip it (Righteous Fire), and mana (design doc §3.14). */
+function Sustain(props: { sustain: SustainResult }) {
+  const burn = burnCheck(props.sustain);
+  const mana = manaCheck(props.sustain.base);
+  return (
+    <>
+      <h4>Life and mana to keep going</h4>
+      <ul className="findings">
+        {burn && (
+          <li className={SEVERITY[burn.severity]}>
+            <strong>Self-damage (e.g. Righteous Fire)</strong>
+            <span className="small">{burn.text}</span>
+            {burn.lifeCostPerSecond > 0 && (
+              <span className="small muted">
+                {" "}
+                Casting non-stop also costs {Math.round(burn.lifeCostPerSecond).toLocaleString("en-US")} life/s (Lifetap, life costs).
+              </span>
+            )}
+            {burn.scenarios.length > 0 && (
+              <table className="scenarios small">
+                <tbody>
+                  {burn.scenarios.map((s) => (
+                    <tr key={s.label}>
+                      <td>{s.label}</td>
+                      <td className={s.net < 0 ? "worse" : ""}>{`${s.net < 0 ? "−" : "+"}${Math.abs(Math.round(s.net)).toLocaleString("en-US")} life/s`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </li>
+        )}
+        <li className={SEVERITY[mana.severity]}>
+          <strong>Mana</strong>
+          <span className="small">{mana.text}</span>
+        </li>
+      </ul>
+    </>
   );
 }
