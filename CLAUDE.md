@@ -56,6 +56,10 @@ usage log: `docs/progress.md`.
 - Tests never call the network; poe.ninja / trade / PoB responses and log
   lines come from made-up fixtures in `src/core/__fixtures__/`.
 - Never commit account tokens, POESESSID, OAuth secrets, or a real `Client.txt`.
+- `src/conventions.test.ts` checks the league-name, pure-`src/core` and `Client.txt`
+  rules; `src/test-setup.ts` makes any un-stubbed `fetch` in a test fail. When a rule
+  changes, change it here and in that test together. When a session breaks a rule a
+  test could catch, prefer adding the test over adding more prose here.
 - Don't trust memory for league mechanics: research the current league when a
   session needs it.
 
