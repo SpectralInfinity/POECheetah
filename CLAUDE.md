@@ -67,3 +67,7 @@ usage log: `docs/progress.md`.
   environment can't), let GitHub Actions do it.
 - At the end of a session, update `docs/progress.md` (checklist + usage row;
   the user supplies the usage percentages).
+- Session loop: `.claude/hooks/session-start.sh` shows the next row and
+  `docs/learnings.md` at the start of every session. End each session with
+  `/wrap-session` (progress, learnings, setup proposals). The owner runs
+  `/weekly-retro` once a week; retros go in `docs/retros.md`.
